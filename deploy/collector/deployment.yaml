@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: toe-collector
+  namespace: toe-system
+spec:
+  ports:
+  - port: 8443
+    targetPort: 8443
+  selector:
+    app: toe-collector
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toe-collector
+  namespace: toe-system
+spec:
+  selector:
+    matchLabels:
+      app: toe-collector
+  template:
+    metadata:
+      labels:
+        app: toe-collector
+    spec:
+      serviceAccountName: toe-collector
+      containers:
+      - name: collector
+        image: localhost:32000/codriverlabs/toe-collector:v1.0.8
+        ports:
+        - containerPort: 8443
+        volumeMounts:
+        - name: profiles-data
+          mountPath: /data
+        - name: service-certs
+          mountPath: /certs
+          readOnly: true
+        env:
+        - name: TLS_CERT_PATH
+          value: /certs/tls.crt
+        - name: TLS_KEY_PATH
+          value: /certs/tls.key
+        - name: KUBERNETES_AUDIENCE
+          value: "toe-sdk-collector"
+      volumes:
+      - name: profiles-data
+        persistentVolumeClaim:
+          claimName: profiles-pvc
+      - name: service-certs
+        secret:
+          secretName: toe-collector-certs

@@ -1,0 +1,22 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: aperf-config
+  namespace: toe-system
+spec:
+  name: "aperf"
+  image: "localhost:32000/codriverlabs/toe/aperf:v1.0.12"
+  securityContext:
+    allowPrivileged: false
+    allowHostPID: false
+    capabilities:
+      add: ["SYS_PTRACE", "PERFMON", "SYS_ADMIN"]
+      drop: ["ALL"]
+  allowedNamespaces:
+    - "production"
+    - "staging"
+    - "development"
+    - "toe-test"
+  description: "Advanced performance profiling tool for CPU and memory analysis"
+  version: "v1.0.12"
+  defaultArgs: ["--cpu", "--memory", "--duration=30s"]

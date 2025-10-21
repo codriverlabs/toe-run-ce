@@ -1,0 +1,25 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: aperf-collector
+  namespace: toe-test
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: nginx-cluster
+    container: "main-container"
+  tool:
+    name: "aperf"
+    duration: "35s"
+    warmup: "5s"
+  output:
+    mode: "ephemeral"
+    collector:
+      endpoint: "https://toe-collector.toe-system.svc.cluster.local:8443"
+  failurePolicy:
+    onError: "stop"
+    backoff:
+      initial: "10s"
+      max: "5m"
+      multiplier: "2"

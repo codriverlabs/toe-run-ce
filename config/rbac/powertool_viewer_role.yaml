@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: powertool-viewer-role
+rules:
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools
+  - powertoolconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools/status
+  - powertoolconfigs/status
+  verbs:
+  - get
