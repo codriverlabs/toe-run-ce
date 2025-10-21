@@ -1,0 +1,20 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: aperf-ephemeral-example
+  namespace: toe-test
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: nginx
+    container: "main-container"
+  tool:
+    name: "aperf"
+    duration: "30s"
+    args:
+      cpu: true
+      memory: true
+      output: "/tmp/profile.data"
+  output:
+    mode: "ephemeral"

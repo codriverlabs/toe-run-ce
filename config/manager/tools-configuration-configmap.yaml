@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tools-configuration
+  namespace: system
+  annotations:
+    kustomize.config.k8s.io/behavior: keep
+data:
+  # Collector token configuration
+  # Token expiry multiplier (default: 2x tool duration)
+  token-expiry-multiplier: "2"
+  # Minimum token buffer in seconds (default: 10s)
+  token-buffer-seconds: "10"

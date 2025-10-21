@@ -1,0 +1,39 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: powertool-editor-role
+rules:
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs/status
+  verbs:
+  - get

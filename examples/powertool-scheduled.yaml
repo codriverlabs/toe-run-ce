@@ -1,0 +1,26 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: aperf-scheduled-example
+  namespace: default
+spec:
+  targets:
+    namespaceSelector:
+      matchNames: ["production", "staging"]
+    labelSelector:
+      matchLabels:
+        tier: "backend"
+  tool:
+    name: "aperf"
+    duration: "120s"
+    resolutionPreset: "medium"
+  output:
+    mode: "pvc"
+    pvc:
+      claimName: "scheduled-profiles"
+      path: "/data/scheduled"
+    rollingInterval: "24h"
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  ttlSecondsAfterFinished: 500  # 5 minutes
+  budgets:
+    maxConcurrentPods: 5
