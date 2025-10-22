@@ -1,5 +1,8 @@
-# Image URL to use all building/pushing image targets
+# Image URLs
 IMG ?= controller:latest
+CONTROLLER_IMG ?= ghcr.io/codriverlabs/toe-controller:$(VERSION)
+COLLECTOR_IMG ?= ghcr.io/codriverlabs/toe-collector:$(VERSION)
+APERF_IMG ?= ghcr.io/codriverlabs/toe-aperf:$(VERSION)
 VERSION ?= 1.0.20-beta
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -207,6 +210,14 @@ helm-chart: manifests generate kustomize ## Generate Helm chart with configurabl
 	mkdir -p dist/helm
 	cp -r helm/toe-operator dist/helm/
 	
+	# Update image repositories in values.yaml based on build parameters
+	@CONTROLLER_REPO=$$(echo "$(CONTROLLER_IMG)" | sed 's/:.*//'); \
+	COLLECTOR_REPO=$$(echo "$(COLLECTOR_IMG)" | sed 's/:.*//'); \
+	APERF_REPO=$$(echo "$(APERF_IMG)" | sed 's/:.*//'); \
+	sed -i "s|repository: localhost:32000/codriverlabs/toe-k8s-operator|repository: $$CONTROLLER_REPO|g" dist/helm/toe-operator/values.yaml; \
+	sed -i "s|repository: localhost:32000/codriverlabs/toe-collector|repository: $$COLLECTOR_REPO|g" dist/helm/toe-operator/values.yaml; \
+	sed -i "s|repository: localhost:32000/codriverlabs/toe/aperf|repository: $$APERF_REPO|g" dist/helm/toe-operator/values.yaml
+	
 	# Generate CRDs for Helm (installed before templates)
 	mkdir -p dist/helm/toe-operator/crds
 	$(KUSTOMIZE) build config/crd > dist/helm/toe-operator/crds/crds.yaml
@@ -224,16 +235,6 @@ helm-chart: manifests generate kustomize ## Generate Helm chart with configurabl
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	
 	@echo "✅ Helm chart generated in dist/helm/toe-operator/"
-	@echo ""
-	@echo "📦 Usage examples:"
-	@echo "  # Install with default values (local registry)"
-	@echo "  helm install toe-operator dist/helm/toe-operator/"
-	@echo ""
-	@echo "  # Install with ECR registry"
-	@echo "  helm install toe-operator dist/helm/toe-operator/ \\"
-	@echo "    --set global.registry.type=ecr \\"
-	@echo "    --set controller.image.repository=123456789012.dkr.ecr.us-west-2.amazonaws.com/codriverlabs/toe-k8s-operator \\"
-	@echo "    --set collector.image.repository=123456789012.dkr.ecr.us-west-2.amazonaws.com/codriverlabs/toe-collector"
 
 .PHONY: helm-package
 helm-package: helm-chart ## Package Helm chart into .tgz file

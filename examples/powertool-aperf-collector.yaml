@@ -11,10 +11,10 @@ spec:
     container: "main-container"
   tool:
     name: "aperf"
-    duration: "35s"
+    duration: "10s"
     warmup: "5s"
   output:
-    mode: "ephemeral"
+    mode: "collector"
     collector:
       endpoint: "https://toe-collector.toe-system.svc.cluster.local:8443"
   failurePolicy:

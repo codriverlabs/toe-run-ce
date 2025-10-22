@@ -48,7 +48,7 @@ var _ = Describe("PowerTool Controller Integration", func() {
 							},
 						},
 						Tool: toev1alpha1.ToolSpec{
-							Name:     "aperf",
+							Name:     "nonexistent-tool",
 							Duration: "30s",
 						},
 						Output: toev1alpha1.OutputSpec{
@@ -82,7 +82,7 @@ var _ = Describe("PowerTool Controller Integration", func() {
 
 			// Should fail due to missing PowerToolConfig, which is expected behavior
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("PowerToolConfig not found"))
+			Expect(err.Error()).To(ContainSubstring("PowerToolConfig not found for tool: nonexistent-tool"))
 		})
 	})
 })

@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -297,8 +298,12 @@ func (r *PowerToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			if r.isContainerRunning(pod, existingContainer) {
 				continue // Still running
 			} else {
-				// Container finished, clean up
+				// Container finished, move to completed
 				delete(powerTool.Status.ActivePods, pod.Name)
+				if powerTool.Status.CompletedPods == nil {
+					powerTool.Status.CompletedPods = new(int32)
+				}
+				*powerTool.Status.CompletedPods++
 			}
 		}
 
@@ -341,7 +346,16 @@ func (r *PowerToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		r.setCondition(&powerTool, toev1alpha1.PowerToolConditionCompleted, "True", toev1alpha1.ReasonCompleted, "All containers completed")
 	}
 
-	if err := r.Status().Update(ctx, &powerTool); err != nil {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Get the latest version
+		latest := &toev1alpha1.PowerTool{}
+		if err := r.Get(ctx, req.NamespacedName, latest); err != nil {
+			return err
+		}
+		// Preserve our status changes
+		latest.Status = powerTool.Status
+		return r.Status().Update(ctx, latest)
+	}); err != nil {
 		logger.Error(err, "unable to update PowerTool status")
 		return ctrl.Result{}, err
 	}
@@ -442,7 +456,16 @@ func (r *PowerToolReconciler) isContainerRunning(pod corev1.Pod, containerName s
 			// Container exists, check its status
 			for _, status := range pod.Status.EphemeralContainerStatuses {
 				if status.Name == containerName {
-					return status.State.Running != nil
+					// Check if container is running
+					if status.State.Running != nil {
+						return true
+					}
+					// Check if container is terminated (completed or failed)
+					if status.State.Terminated != nil {
+						return false
+					}
+					// Container is waiting or unknown state
+					return true
 				}
 			}
 			// Container exists but no status yet, assume running

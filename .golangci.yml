@@ -1,3 +1,5 @@
+version: 2
+
 run:
   timeout: 5m
   skip-dirs:
@@ -10,9 +12,6 @@ linters:
     - unused
     - errcheck
     - goconst
-    - gofmt
-    - goimports
-    - gosimple
     - govet
     - ineffassign
     - staticcheck

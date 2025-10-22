@@ -5,7 +5,7 @@ metadata:
   namespace: toe-system
 spec:
   name: "aperf"
-  image: "localhost:32000/codriverlabs/toe/aperf:v1.0.12"
+  image: "localhost:32000/codriverlabs/toe/aperf:v1.0.31"
   securityContext:
     allowPrivileged: false
     allowHostPID: false

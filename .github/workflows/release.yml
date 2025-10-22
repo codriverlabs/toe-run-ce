@@ -41,14 +41,27 @@ jobs:
       id: version
       run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
+    - name: Set image names based on repository
+      id: images
+      run: |
+        if [[ "${{ github.repository }}" == "codriverlabs/toe-run-ce" ]]; then
+          echo "CONTROLLER_IMAGE=ghcr.io/codriverlabs/ce/toe-controller" >> $GITHUB_OUTPUT
+          echo "COLLECTOR_IMAGE=ghcr.io/codriverlabs/ce/toe-collector" >> $GITHUB_OUTPUT
+          echo "APERF_IMAGE=ghcr.io/codriverlabs/ce/toe-aperf" >> $GITHUB_OUTPUT
+        else
+          echo "CONTROLLER_IMAGE=${{ env.CONTROLLER_IMAGE }}" >> $GITHUB_OUTPUT
+          echo "COLLECTOR_IMAGE=${{ env.COLLECTOR_IMAGE }}" >> $GITHUB_OUTPUT
+          echo "APERF_IMAGE=${{ env.APERF_IMAGE }}" >> $GITHUB_OUTPUT
+        fi
+
     - name: Build and push controller image
       uses: docker/build-push-action@v6
       with:
         context: .
         push: true
         tags: |
-          ${{ env.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}
-          ${{ env.CONTROLLER_IMAGE }}:latest
+          ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -59,8 +72,8 @@ jobs:
         file: build/collector/Dockerfile
         push: true
         tags: |
-          ${{ env.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}
-          ${{ env.COLLECTOR_IMAGE }}:latest
+          ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -71,15 +84,18 @@ jobs:
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
-          ${{ env.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}
-          ${{ env.APERF_IMAGE }}:latest
+          ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          ${{ steps.images.outputs.APERF_IMAGE }}:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Generate release artifacts
       run: |
         make github-release \
-          IMG=${{ env.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+          IMG=${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+          CONTROLLER_IMG=${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+          COLLECTOR_IMG=${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+          APERF_IMG=${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }} \
           VERSION=${{ steps.version.outputs.VERSION }}
 
     - name: Create GitHub Release
@@ -93,9 +109,9 @@ jobs:
         body: |
           ## 📦 Container Images
           
-          - **Controller**: `${{ env.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}`
-          - **Collector**: `${{ env.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}`
-          - **Aperf Tool**: `${{ env.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}`
+          - **Controller**: `${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}`
+          - **Collector**: `${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}`
+          - **Aperf Tool**: `${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}`
           
           ## 🚀 Installation
           

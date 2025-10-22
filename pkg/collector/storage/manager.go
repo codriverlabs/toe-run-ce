@@ -21,8 +21,8 @@ func NewManager(basePath string) (*Manager, error) {
 	}, nil
 }
 
-func (m *Manager) SaveProfile(r io.Reader, jobID string) error {
-	path := filepath.Join(m.basePath, fmt.Sprintf("%s.profile", jobID))
+func (m *Manager) SaveProfile(r io.Reader, filename string) error {
+	path := filepath.Join(m.basePath, filename)
 
 	f, err := os.Create(path)
 	if err != nil {

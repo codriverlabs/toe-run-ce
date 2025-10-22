@@ -10,6 +10,9 @@ fi
 
 PROFILE_FILE="$1"
 
+# Extract filename from path
+FILENAME=$(basename "$PROFILE_FILE")
+
 # Validate required environment variables
 if [ -z "$COLLECTOR_TOKEN" ]; then
     echo "Error: COLLECTOR_TOKEN not set"
@@ -36,11 +39,12 @@ CURL_OPTS="--insecure"
 #    CURL_OPTS="--insecure"
 #fi
 
-# Send profile data with job ID header
+# Send profile data with job ID and filename headers
 curl -X POST \
     $CURL_OPTS \
     -H "Authorization: Bearer $COLLECTOR_TOKEN" \
     -H "X-PowerTool-Job-ID: $POWERTOOL_JOB_ID" \
+    -H "X-PowerTool-Filename: $FILENAME" \
     -H "Content-Type: application/octet-stream" \
     --data-binary "@$PROFILE_FILE" \
     "$COLLECTOR_ENDPOINT/api/v1/profile"

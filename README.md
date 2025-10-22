@@ -18,9 +18,16 @@ TOE provides a declarative way to run profiling tools like `perf`, `strace`, and
 
 ### Prerequisites
 - go version v1.24.0+
-- docker version 17.03+
-- kubectl version v1.11.3+
-- Access to a Kubernetes v1.11.3+ cluster
+- docker version 25.0+
+- kubectl version v1.33.0+
+- Access to a Kubernetes v1.33+ cluster
+
+Check your versions:
+```sh
+go version
+docker --version
+kubectl version --client
+```
 
 ### Quick Install
 
@@ -104,6 +111,7 @@ TOE consists of two main components:
 - [Security Model](docs/security/README.md)
 - [TLS Setup](docs/tls-setup.md)
 - [Examples](examples/README.md)
+- [Roadmap](ROADMAP.md)
 
 ## Contributing
 

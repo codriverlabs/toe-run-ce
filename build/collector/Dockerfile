@@ -1,6 +1,16 @@
 FROM golang:1.24 AS builder
 WORKDIR /workspace
-COPY . .
+
+# Copy go mod files first for better caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY cmd/collector/ cmd/collector/
+COPY pkg/ pkg/
+COPY api/ api/
+COPY internal/ internal/
+
 RUN CGO_ENABLED=0 go build -o collector cmd/collector/main.go
 
 FROM gcr.io/distroless/static:nonroot

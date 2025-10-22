@@ -92,10 +92,16 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log successful authentication
-	log.Printf("Authenticated request from %s for job %s", userInfo.Username, jobID)
+	// Extract filename from request headers (preferred) or use jobID as fallback
+	filename := r.Header.Get("X-PowerTool-Filename")
+	if filename == "" {
+		filename = fmt.Sprintf("%s.profile", jobID)
+	}
 
-	if err := s.storage.SaveProfile(r.Body, jobID); err != nil {
+	// Log successful authentication
+	log.Printf("Authenticated request from %s for job %s, filename: %s", userInfo.Username, jobID, filename)
+
+	if err := s.storage.SaveProfile(r.Body, filename); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to save profile: %v", err), http.StatusInternalServerError)
 		return
 	}
