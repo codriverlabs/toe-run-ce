@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tools-configuration
+  namespace: toe-system
+data:
+  # Token expiry: 3x tool duration + 30s buffer
+  token-expiry-multiplier: "3"
+  token-buffer-seconds: "30"
+---
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: aperf-config
+  namespace: toe-system
+spec:
+  name: "aperf"
+  image: "localhost:32000/toe/aperf:v1.0.5"
+  security:
+    allowPrivileged: false
+    capabilities:
+      add: ["SYS_PTRACE"]
+---
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: test-token-config
+  namespace: default
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: test-app
+  tool:
+    name: "aperf"
+    duration: "60s"  # With 3x multiplier + 30s buffer = 210s token expiry
+  output:
+    mode: "ephemeral"
+    collector:
+      endpoint: "https://toe-collector.toe-system.svc.cluster.local:8443"

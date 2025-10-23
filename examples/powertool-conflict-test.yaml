@@ -1,0 +1,108 @@
+# PowerTool Conflict Resolution Test
+# This example tests conflict detection when multiple PowerTools target the same pods
+
+---
+# PowerToolConfig for testing
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: aperf-test-config
+  namespace: toe-system
+spec:
+  name: "aperf"
+  image: "localhost:32000/toe/aperf:v1.0.5"
+  security:
+    allowPrivileged: false
+    allowHostPID: false
+    capabilities:
+      add: ["SYS_PTRACE", "PERFMON"]
+      drop: ["ALL"]
+  description: "Test configuration for aperf profiler"
+  version: "v1.0.5"
+
+---
+# First PowerTool - should succeed
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: powertool-engineer1
+  namespace: default
+  annotations:
+    test.toe.run/scenario: "conflict-resolution"
+    test.toe.run/expected: "success"
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: my-application
+  tool:
+    name: "aperf"
+    duration: "60s"
+  output:
+    mode: "pvc"
+    pvc:
+      claimName: "profiling-storage"
+      path: "/data/engineer1"
+  budgets:
+    maxConcurrentPods: 1
+
+---
+# Second PowerTool - should detect conflict and be rejected/queued
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: powertool-engineer2
+  namespace: default
+  annotations:
+    test.toe.run/scenario: "conflict-resolution"
+    test.toe.run/expected: "conflict-detected"
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: my-application  # Same target as engineer1
+  tool:
+    name: "aperf"
+    duration: "30s"
+  output:
+    mode: "pvc"
+    pvc:
+      claimName: "profiling-storage"
+      path: "/data/engineer2"
+  budgets:
+    maxConcurrentPods: 1
+
+---
+# Target pod for testing
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-application
+  namespace: default
+  labels:
+    app: my-application
+spec:
+  containers:
+  - name: app
+    image: nginx:alpine
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+---
+# PVC for test output
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: profiling-storage
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

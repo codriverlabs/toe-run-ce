@@ -1,0 +1,61 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/ephemeralcontainers
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs
+  - powertools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs/finalizers
+  - powertools/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs/status
+  - powertools/status
+  verbs:
+  - get
+  - patch
+  - update

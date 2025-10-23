@@ -1,0 +1,21 @@
+version: 2
+
+run:
+  timeout: 5m
+  skip-dirs:
+    - test
+  skip-files:
+    - ".*_test.go"
+
+linters:
+  enable:
+    - unused
+    - errcheck
+    - goconst
+    - govet
+    - ineffassign
+    - staticcheck
+
+linters-settings:
+  unused:
+    check-exported: false

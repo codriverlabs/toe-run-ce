@@ -1,0 +1,87 @@
+# Default values for toe-operator
+
+# Global settings
+global:
+  registry:
+    type: local  # local, ecr
+    imagePullSecrets: []
+  namespace: toe-system
+
+# Controller configuration
+controller:
+  enabled: true
+  image:
+    repository: localhost:32000/codriverlabs/toe-k8s-operator
+    tag: v1.0.7
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+# Collector configuration
+collector:
+  enabled: true
+  image:
+    repository: localhost:32000/codriverlabs/toe-collector
+    tag: v1.0.7
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  service:
+    type: ClusterIP
+    port: 8443
+  storage:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+
+# PowerTool configurations
+powertools:
+  # Default tool configurations to install
+  configs:
+    aperf:
+      enabled: true
+      image:
+        repository: localhost:32000/codriverlabs/toe/aperf
+        tag: v1.0.7
+
+# RBAC configuration
+rbac:
+  create: true
+  # Install built-in RBAC roles
+  installBuiltinRoles: true
+
+# Service Account configuration
+serviceAccount:
+  create: true
+  annotations: {}
+
+# Security settings
+security:
+  podSecurityPolicy:
+    enabled: false
+  networkPolicy:
+    enabled: false
+
+# ECR specific settings (when global.registry.type = ecr)
+ecr:
+  accountId: ""
+  region: us-west-2
+  secretName: ecr-secret
+
+# Monitoring
+monitoring:
+  enabled: false
+  serviceMonitor:
+    enabled: false
