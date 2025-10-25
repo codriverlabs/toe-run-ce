@@ -19,9 +19,9 @@ spec:
         {{- include "toe-operator.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: toe-collector
-      {{- with .Values.global.registry.imagePullSecrets }}
+      {{- with include "toe-operator.imagePullSecrets" . }}
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
+{{ . | indent 8 }}
       {{- end }}
       containers:
       - name: collector

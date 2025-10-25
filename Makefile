@@ -210,26 +210,36 @@ helm-chart: manifests generate kustomize ## Generate Helm chart with configurabl
 	mkdir -p dist/helm
 	cp -r helm/toe-operator dist/helm/
 	
-	# Update image repositories in values.yaml based on build parameters
-	@CONTROLLER_REPO=$$(echo "$(CONTROLLER_IMG)" | sed 's/:.*//'); \
-	COLLECTOR_REPO=$$(echo "$(COLLECTOR_IMG)" | sed 's/:.*//'); \
-	APERF_REPO=$$(echo "$(APERF_IMG)" | sed 's/:.*//'); \
-	sed -i "s|repository: localhost:32000/codriverlabs/toe-k8s-operator|repository: $$CONTROLLER_REPO|g" dist/helm/toe-operator/values.yaml; \
-	sed -i "s|repository: localhost:32000/codriverlabs/toe-collector|repository: $$COLLECTOR_REPO|g" dist/helm/toe-operator/values.yaml; \
-	sed -i "s|repository: localhost:32000/codriverlabs/toe/aperf|repository: $$APERF_REPO|g" dist/helm/toe-operator/values.yaml
+	# Update image tags in values.yaml based on build parameters
+	@CONTROLLER_TAG=$$(echo "$(CONTROLLER_IMG)" | sed 's/.*://'); \
+	COLLECTOR_TAG=$$(echo "$(COLLECTOR_IMG)" | sed 's/.*://'); \
+	APERF_TAG=$$(echo "$(APERF_IMG)" | sed 's/.*://'); \
+	sed -i "s|tag: \"1.1.4-beta\"|tag: \"$$CONTROLLER_TAG\"|g" dist/helm/toe-operator/values.yaml
 	
 	# Generate CRDs for Helm (installed before templates)
 	mkdir -p dist/helm/toe-operator/crds
 	$(KUSTOMIZE) build config/crd > dist/helm/toe-operator/crds/crds.yaml
 	
-	# Generate controller manifests with Helm templating
+	# Generate controller manifests with Helm templating (excluding CRDs and Namespace)
 	mkdir -p dist/helm/toe-operator/templates
 	cd config/manager && $(KUSTOMIZE) edit set image controller='{{ include "toe-operator.controller.image" . }}'
-	$(KUSTOMIZE) build config/default | sed 's/namespace: toe-system/namespace: {{ include "toe-operator.namespace" . }}/g' > dist/helm/toe-operator/templates/controller.yaml
+	$(KUSTOMIZE) build config/default > /tmp/kustomize-output.yaml
+	sed 's/namespace: toe-system/namespace: {{ include "toe-operator.namespace" . }}/g' /tmp/kustomize-output.yaml | \
+		sed '/^apiVersion: apiextensions\.k8s\.io\/v1$$/,/^---$$/d' | \
+		sed '/^apiVersion: v1$$/N;/^apiVersion: v1\nkind: Namespace$$/,/^---$$/d' | \
+		sed "s|'{{ include \"toe-operator.controller.image\" . }}'|{{ include \"toe-operator.controller.image\" . }}|g" | \
+		sed "s|{{ include \"toe-operator.controller.image\" . }}:latest|{{ include \"toe-operator.controller.image\" . }}|g" > dist/helm/toe-operator/templates/controller.yaml
+	rm -f /tmp/kustomize-output.yaml
 	
 	# Add Helm conditionals to controller template
 	sed -i '1i{{- if .Values.controller.enabled }}' dist/helm/toe-operator/templates/controller.yaml
 	echo '{{- end }}' >> dist/helm/toe-operator/templates/controller.yaml
+	
+	# Add imagePullSecrets to controller deployment if needed
+	sed -i '/serviceAccountName:/a\      {{- with include "toe-operator.imagePullSecrets" . }}\n      imagePullSecrets:\n{{ . | indent 8 }}\n      {{- end }}' dist/helm/toe-operator/templates/controller.yaml
+	
+	# Remove any hardcoded imagePullSecrets from kustomize output
+	sed -i '/^      imagePullSecrets:$$/,/^      securityContext:$$/{/^      imagePullSecrets:$$/d; /^      - name: /d;}' dist/helm/toe-operator/templates/controller.yaml
 	
 	# Reset kustomize to original image
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
@@ -239,8 +249,58 @@ helm-chart: manifests generate kustomize ## Generate Helm chart with configurabl
 .PHONY: helm-package
 helm-package: helm-chart ## Package Helm chart into .tgz file
 	@command -v helm >/dev/null 2>&1 || { echo "❌ Helm is required. Install from https://helm.sh/docs/intro/install/"; exit 1; }
+	# Update Chart.yaml version before packaging
+	sed -i 's/^version: .*/version: $(VERSION)/' dist/helm/toe-operator/Chart.yaml
+	sed -i 's/^appVersion: .*/appVersion: "$(VERSION)"/' dist/helm/toe-operator/Chart.yaml
+	# Copy ECR sync script to helm chart directory
+	mkdir -p dist/helm/toe-operator/scripts
+	cp helper_scripts/ecr/sync-images-from-ghcr-to-ecr.sh dist/helm/toe-operator/scripts/
+	# Copy examples folder and update image references
+	mkdir -p dist/helm/toe-operator/examples
+	cp -r examples/* dist/helm/toe-operator/examples/
+	# Update aperf image reference in powertoolconfig-aperf.yaml
+	if [ -f "dist/helm/toe-operator/examples/powertoolconfig-aperf.yaml" ]; then \
+		sed -i 's|image: .*|image: $(APERF_IMG)|g' dist/helm/toe-operator/examples/powertoolconfig-aperf.yaml; \
+	fi
 	cd dist/helm && helm package toe-operator
-	@echo "✅ Helm chart packaged: dist/helm/toe-operator-1.0.0.tgz"
+	@echo "✅ Helm chart packaged: dist/helm/toe-operator-$(VERSION).tgz"
+
+.PHONY: render-locally-helm-chart
+render-locally-helm-chart: ## Render Helm chart locally with custom values for testing
+	@echo "🎨 Rendering Helm chart locally..."
+	
+	# Check required parameters
+	@if [ -z "$(AWS_ACCOUNT_ID)" ]; then \
+		echo "❌ Error: AWS_ACCOUNT_ID is required. Usage: make render-locally-helm-chart AWS_ACCOUNT_ID=123456789012 AWS_REGION=us-west-2"; \
+		exit 1; \
+	fi
+	@if [ -z "$(AWS_REGION)" ]; then \
+		echo "❌ Error: AWS_REGION is required. Usage: make render-locally-helm-chart AWS_ACCOUNT_ID=123456789012 AWS_REGION=us-west-2"; \
+		exit 1; \
+	fi
+	
+	# Clean up previous artifacts
+	rm -rf ./tmp/*
+	rm -rf ./dist/*
+	
+	# Generate and package Helm chart
+	$(MAKE) manifests
+	$(MAKE) helm-chart
+	$(MAKE) helm-package
+	
+	# Extract and render chart with custom values
+	mkdir -p ./tmp
+	cp ./dist/helm/*.tgz ./tmp
+	cd ./tmp && tar -xf ./*.tgz
+	cd ./tmp && helm template \
+		--set-string global.registry.repository=$(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/codriverlabs/toe \
+		--set-string controller.image.tag=$(VERSION) \
+		--set-string collector.image.tag=$(VERSION) \
+		toe-operator-$(VERSION) ./toe-operator > template.yaml
+	
+	@echo "✅ Helm chart rendered locally: tmp/template.yaml"
+	@echo "📦 Extracted chart available in: tmp/toe-operator/"
+	@echo "🔧 Used registry: $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/codriverlabs/toe"
 
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.

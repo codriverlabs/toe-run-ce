@@ -15,7 +15,7 @@ spec:
     - toe-collector.toe-system.svc
     - toe-collector.toe-system.svc.cluster.local
   issuerRef:
-    name: collector-issuer
+    name: toe-collector-issuer
     kind: Issuer
 ---
 apiVersion: cert-manager.io/v1

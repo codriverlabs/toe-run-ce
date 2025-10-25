@@ -52,14 +52,21 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Controller image
 */}}
 {{- define "toe-operator.controller.image" -}}
-{{- printf "%s:%s" .Values.controller.image.repository .Values.controller.image.tag }}
+{{- printf "%s/toe-controller:%s" .Values.global.registry.repository .Values.controller.image.tag }}
 {{- end }}
 
 {{/*
 Collector image  
 */}}
 {{- define "toe-operator.collector.image" -}}
-{{- printf "%s:%s" .Values.collector.image.repository .Values.collector.image.tag }}
+{{- printf "%s/toe-collector:%s" .Values.global.registry.repository .Values.collector.image.tag }}
+{{- end }}
+
+{{/*
+Aperf image
+*/}}
+{{- define "toe-operator.aperf.image" -}}
+{{- printf "%s/toe-aperf:%s" .Values.global.registry.repository .Values.powertools.configs.aperf.image.tag }}
 {{- end }}
 
 {{/*
@@ -67,4 +74,19 @@ Namespace
 */}}
 {{- define "toe-operator.namespace" -}}
 {{- default "toe-system" .Values.global.namespace }}
+{{- end }}
+
+{{/*
+Image pull secrets - only include if not using IRSA for ECR
+*/}}
+{{- define "toe-operator.imagePullSecrets" -}}
+{{- if and (eq .Values.global.registry.type "ecr") (not .Values.ecr.useIRSA) }}
+{{- if .Values.ecr.secretName }}
+- name: {{ .Values.ecr.secretName }}
+{{- end }}
+{{- else if .Values.global.imagePullSecrets }}
+{{- range .Values.global.imagePullSecrets }}
+- name: {{ . }}
+{{- end }}
+{{- end }}
 {{- end }}

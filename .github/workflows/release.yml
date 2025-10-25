@@ -20,9 +20,6 @@ jobs:
           - arch: amd64
             runner: ubuntu-latest
             platform: linux/amd64
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            platform: linux/arm64
     permissions:
       contents: write
       packages: write
@@ -100,8 +97,83 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-arm64:
+    runs-on: ubuntu-24.04-arm
+    if: github.repository == 'codriverlabs/toe-run-ce'
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Set image names for public repository
+        id: images
+        run: |
+          echo "CONTROLLER_IMAGE=ghcr.io/codriverlabs/ce/toe-controller" >> $GITHUB_OUTPUT
+          echo "COLLECTOR_IMAGE=ghcr.io/codriverlabs/ce/toe-collector" >> $GITHUB_OUTPUT
+          echo "APERF_IMAGE=ghcr.io/codriverlabs/ce/toe-aperf" >> $GITHUB_OUTPUT
+
+      - name: Build and push controller image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
+            ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push collector image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: build/collector/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
+            ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push aperf image
+        uses: docker/build-push-action@v6
+        with:
+          context: power-tools/aperf
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
+            ${{ steps.images.outputs.APERF_IMAGE }}:latest-arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   create-manifests-and-release:
-    needs: build-and-release
+    needs: [build-and-release, build-arm64]
+    if: always() && (needs.build-and-release.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -141,29 +213,51 @@ jobs:
       - name: Create multi-arch manifests
         run: |
           # Create and push multi-arch manifests
-          docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }} \
-            ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64 \
-            ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
-          
-          docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest \
-            ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-amd64 \
-            ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-arm64
-          
-          docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }} \
-            ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64 \
-            ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
-          
-          docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest \
-            ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-amd64 \
-            ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-arm64
-          
-          docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }} \
-            ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64 \
-            ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
-          
-          docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:latest \
-            ${{ steps.images.outputs.APERF_IMAGE }}:latest-amd64 \
-            ${{ steps.images.outputs.APERF_IMAGE }}:latest-arm64
+          if [[ "${{ github.repository }}" == "codriverlabs/toe-run-ce" ]]; then
+            # Public repo: create multi-arch manifests with both amd64 and arm64
+            docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64 \
+              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest \
+              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-amd64 \
+              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-arm64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64 \
+              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest \
+              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-amd64 \
+              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-arm64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+              ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64 \
+              ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:latest \
+              ${{ steps.images.outputs.APERF_IMAGE }}:latest-amd64 \
+              ${{ steps.images.outputs.APERF_IMAGE }}:latest-arm64
+          else
+            # Private repo: only amd64 images, just tag them without -amd64 suffix
+            docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest \
+              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-amd64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest \
+              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-amd64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }} \
+              ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64
+            
+            docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:latest \
+              ${{ steps.images.outputs.APERF_IMAGE }}:latest-amd64
+          fi
 
       - name: Generate release artifacts
         run: |
@@ -196,7 +290,7 @@ jobs:
             kubectl apply -f https://github.com/codriverlabs/toe/releases/download/${{ github.ref_name }}/toe-operator-${{ steps.version.outputs.VERSION }}.yaml
 
             # Helm install
-            helm install toe-operator https://github.com/codriverlabs/toe/releases/download/${{ github.ref_name }}/toe-operator-1.0.0.tgz
+            helm install toe-operator https://github.com/codriverlabs/toe/releases/download/${{ github.ref_name }}/toe-operator-${{ steps.version.outputs.VERSION }}.tgz
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

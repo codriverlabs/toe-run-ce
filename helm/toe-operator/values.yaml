@@ -3,7 +3,10 @@
 # Global settings
 global:
   registry:
-    type: local  # local, ecr
+    type: ghcr  # local, ecr, ghcr
+    # Base repository path - customers can override this for their ECR
+    # Example: "123456789012.dkr.ecr.us-west-2.amazonaws.com/codriverlabs/ce"
+    repository: "ghcr.io/codriverlabs/ce"
     imagePullSecrets: []
   namespace: toe-system
 
@@ -11,8 +14,8 @@ global:
 controller:
   enabled: true
   image:
-    repository: localhost:32000/codriverlabs/toe-k8s-operator
-    tag: v1.0.7
+    # Repository will be: global.registry.repository + "/toe-controller"
+    tag: "1.1.4-beta"
     pullPolicy: IfNotPresent
   replicas: 1
   resources:
@@ -27,8 +30,8 @@ controller:
 collector:
   enabled: true
   image:
-    repository: localhost:32000/codriverlabs/toe-collector
-    tag: v1.0.7
+    # Repository will be: global.registry.repository + "/toe-collector"
+    tag: "1.1.4-beta"
     pullPolicy: IfNotPresent
   replicas: 1
   resources:
@@ -53,8 +56,8 @@ powertools:
     aperf:
       enabled: true
       image:
-        repository: localhost:32000/codriverlabs/toe/aperf
-        tag: v1.0.7
+        # Repository will be: global.registry.repository + "/toe-aperf"
+        tag: "1.1.4-beta"
 
 # RBAC configuration
 rbac:
@@ -66,6 +69,9 @@ rbac:
 serviceAccount:
   create: true
   annotations: {}
+  # For EKS with IRSA, add the role ARN annotation:
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/TOE-IRSA-Role
 
 # Security settings
 security:
@@ -78,6 +84,8 @@ security:
 ecr:
   accountId: ""
   region: us-west-2
+  # For EKS clusters, set useIRSA to true to avoid Docker secrets
+  useIRSA: false
   secretName: ecr-secret
 
 # Monitoring

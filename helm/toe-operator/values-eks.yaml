@@ -1,0 +1,44 @@
+# Example values for EKS deployment with ECR
+# This configuration assumes:
+# 1. Images are synced to ECR using helper_scripts/ecr/sync-images-from-ghcr-to-ecr.sh
+# 2. EKS cluster has IRSA configured for ECR access
+# 3. Service account has appropriate IAM role annotation
+
+global:
+  registry:
+    type: ecr
+    # Change this to your ECR repository base path
+    repository: "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/codriverlabs/ce"
+    imagePullSecrets: []
+  namespace: toe-system
+
+controller:
+  enabled: true
+  image:
+    tag: "1.1.4-beta"
+    pullPolicy: IfNotPresent
+
+collector:
+  enabled: true
+  image:
+    tag: "1.1.4-beta"
+    pullPolicy: IfNotPresent
+
+powertools:
+  configs:
+    aperf:
+      enabled: true
+      image:
+        tag: "1.1.4-beta"
+
+serviceAccount:
+  create: true
+  annotations:
+    # Replace with your actual IAM role ARN for IRSA
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/TOE-IRSA-Role
+
+ecr:
+  accountId: "ACCOUNT_ID"
+  region: "REGION"
+  useIRSA: true
+  # secretName not needed when using IRSA
