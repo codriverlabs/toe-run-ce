@@ -3,7 +3,7 @@ IMG ?= controller:latest
 CONTROLLER_IMG ?= ghcr.io/codriverlabs/toe-controller:$(VERSION)
 COLLECTOR_IMG ?= ghcr.io/codriverlabs/toe-collector:$(VERSION)
 APERF_IMG ?= ghcr.io/codriverlabs/toe-aperf:$(VERSION)
-VERSION ?= v1.0.47
+VERSION ?= v1.1.5-beta
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
