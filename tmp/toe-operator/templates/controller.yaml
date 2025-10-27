@@ -1,0 +1,465 @@
+{{- if .Values.controller.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: toe-collector
+  namespace: {{ include "toe-operator.namespace" . }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: toe
+  name: toe-controller-manager
+  namespace: {{ include "toe-operator.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: toe-collector-token-creator
+  namespace: {{ include "toe-operator.namespace" . }}
+rules:
+- apiGroups:
+  - ""
+  resourceNames:
+  - collector
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: toe
+  name: toe-leader-election-role
+  namespace: {{ include "toe-operator.namespace" . }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: toe-collector-token-validator
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: toe-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/ephemeralcontainers
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs
+  - powertools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs/finalizers
+  - powertools/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs/status
+  - powertools/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: toe-metrics-auth-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: toe-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: toe-powertool-admin-role
+rules:
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools
+  - powertoolconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools/status
+  - powertoolconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: toe-powertool-editor-role
+rules:
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertoolconfigs/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: toe-powertool-viewer-role
+rules:
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools
+  - powertoolconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - codriverlabs.ai.toe.run
+  resources:
+  - powertools/status
+  - powertoolconfigs/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: toe-collector-token-creator
+  namespace: {{ include "toe-operator.namespace" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: toe-collector-token-creator
+subjects:
+- kind: ServiceAccount
+  name: toe-controller-manager
+  namespace: {{ include "toe-operator.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: toe
+  name: toe-leader-election-rolebinding
+  namespace: {{ include "toe-operator.namespace" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: toe-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: toe-controller-manager
+  namespace: {{ include "toe-operator.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: toe-collector-token-validator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: toe-collector-token-validator
+subjects:
+- kind: ServiceAccount
+  name: toe-collector
+  namespace: {{ include "toe-operator.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: toe
+  name: toe-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: toe-manager-role
+subjects:
+- kind: ServiceAccount
+  name: toe-controller-manager
+  namespace: {{ include "toe-operator.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: toe-metrics-auth-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: toe-metrics-auth-role
+subjects:
+- kind: ServiceAccount
+  name: toe-controller-manager
+  namespace: {{ include "toe-operator.namespace" . }}
+---
+apiVersion: v1
+data:
+  token-buffer-seconds: "10"
+  token-expiry-multiplier: "2"
+kind: ConfigMap
+metadata:
+  annotations:
+    kustomize.config.k8s.io/behavior: keep
+  name: toe-tools-configuration
+  namespace: {{ include "toe-operator.namespace" . }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: toe
+    control-plane: controller-manager
+  name: toe-controller-manager-metrics-service
+  namespace: {{ include "toe-operator.namespace" . }}
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app.kubernetes.io/name: toe
+    control-plane: controller-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: toe
+    control-plane: controller-manager
+  name: toe-controller-manager
+  namespace: {{ include "toe-operator.namespace" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: toe
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        app.kubernetes.io/name: toe
+        control-plane: controller-manager
+    spec:
+      containers:
+      - args:
+        - --metrics-bind-address=:8443
+        - --leader-elect
+        - --health-probe-bind-address=:8081
+        command:
+        - /manager
+        image: '{{ include "toe-operator.controller.image" . }}'
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports: []
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts: []
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: toe-controller-manager
+      {{- with include "toe-operator.imagePullSecrets" . }}
+{{ . | indent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 10
+      volumes: []
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: toe-collector-cert
+  namespace: {{ include "toe-operator.namespace" . }}
+spec:
+  commonName: toe-collector.toe-system.svc
+  dnsNames:
+  - toe-collector.toe-system.svc
+  - toe-collector.toe-system.svc.cluster.local
+  duration: 8760h
+  issuerRef:
+    kind: Issuer
+    name: toe-collector-issuer
+  renewBefore: 720h
+  secretName: toe-collector-certs
+  subject:
+    organizations:
+    - CoDriver Labs
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: toe-collector-issuer
+  namespace: {{ include "toe-operator.namespace" . }}
+spec:
+  selfSigned: {}
+{{- end }}

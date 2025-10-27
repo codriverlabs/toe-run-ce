@@ -2,7 +2,7 @@
 # Helper script to inspect collector PVC contents
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSPECTOR_YAML="$SCRIPT_DIR/pvc-inspector.yaml"
+INSPECTOR_YAML="$SCRIPT_DIR/toe-collector-pvc-inspector.yaml"
 
 echo "🔍 TOE Collector PVC Inspector"
 echo "=============================="

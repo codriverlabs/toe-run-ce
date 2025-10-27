@@ -304,6 +304,7 @@ func (r *PowerToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					powerTool.Status.CompletedPods = new(int32)
 				}
 				*powerTool.Status.CompletedPods++
+				continue // Don't process this pod further
 			}
 		}
 

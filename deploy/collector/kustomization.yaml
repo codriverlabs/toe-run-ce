@@ -4,3 +4,9 @@ resources:
 
 # Optional: Add debug pod for development
 # - debug-pod.yaml
+
+images:
+- name: localhost:32000/codriverlabs/toe-collector
+  newTag: 1.0.20-beta
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization

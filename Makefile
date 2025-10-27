@@ -3,7 +3,7 @@ IMG ?= controller:latest
 CONTROLLER_IMG ?= ghcr.io/codriverlabs/toe-controller:$(VERSION)
 COLLECTOR_IMG ?= ghcr.io/codriverlabs/toe-collector:$(VERSION)
 APERF_IMG ?= ghcr.io/codriverlabs/toe-aperf:$(VERSION)
-VERSION ?= 1.0.20-beta
+VERSION ?= v1.0.47
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -226,7 +226,6 @@ helm-chart: manifests generate kustomize ## Generate Helm chart with configurabl
 	$(KUSTOMIZE) build config/default > /tmp/kustomize-output.yaml
 	sed 's/namespace: toe-system/namespace: {{ include "toe-operator.namespace" . }}/g' /tmp/kustomize-output.yaml | \
 		sed '/^apiVersion: apiextensions\.k8s\.io\/v1$$/,/^---$$/d' | \
-		sed '/^apiVersion: v1$$/N;/^apiVersion: v1\nkind: Namespace$$/,/^---$$/d' | \
 		sed "s|'{{ include \"toe-operator.controller.image\" . }}'|{{ include \"toe-operator.controller.image\" . }}|g" | \
 		sed "s|{{ include \"toe-operator.controller.image\" . }}:latest|{{ include \"toe-operator.controller.image\" . }}|g" > dist/helm/toe-operator/templates/controller.yaml
 	rm -f /tmp/kustomize-output.yaml
@@ -416,12 +415,13 @@ endef
 .PHONY: collector-build collector-push collector-deploy collector-undeploy
 
 collector-build: ## Build the collector image
-	$(CONTAINER_TOOL) build -t localhost:32000/codriverlabs/toe-collector:v1.0.8 -f build/collector/Dockerfile .
+	$(CONTAINER_TOOL) build -t localhost:32000/codriverlabs/toe-collector:$(VERSION) -f build/collector/Dockerfile .
 
 collector-push: ## Push the collector image
-	$(CONTAINER_TOOL) push localhost:32000/codriverlabs/toe-collector:v1.0.8
+	$(CONTAINER_TOOL) push localhost:32000/codriverlabs/toe-collector:$(VERSION)
 
 collector-deploy: ## Deploy the collector
+	cd deploy/collector && $(KUSTOMIZE) edit set image localhost:32000/codriverlabs/toe-collector:$(VERSION)
 	cd deploy/collector && $(KUSTOMIZE) build . | $(KUBECTL) apply -f -
 
 collector-undeploy: ## Undeploy the collector

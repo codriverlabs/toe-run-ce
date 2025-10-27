@@ -19,10 +19,6 @@ spec:
         {{- include "toe-operator.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: toe-collector
-      {{- if .Values.collector.storage.fsGroup }}
-      securityContext:
-        fsGroup: {{ .Values.collector.storage.fsGroup }}
-      {{- end }}
       {{- with include "toe-operator.imagePullSecrets" . }}
       imagePullSecrets:
 {{ . | indent 8 }}
@@ -87,7 +83,7 @@ metadata:
     app.kubernetes.io/component: collector
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.collector.storage.size }}

@@ -1,0 +1,391 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: powertoolconfigs.codriverlabs.ai.toe.run
+spec:
+  group: codriverlabs.ai.toe.run
+  names:
+    kind: PowerToolConfig
+    listKind: PowerToolConfigList
+    plural: powertoolconfigs
+    singular: powertoolconfig
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: PowerToolConfig is the Schema for the powertoolconfigs API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of PowerToolConfig
+            properties:
+              allowedNamespaces:
+                description: |-
+                  AllowedNamespaces restricts which namespaces can use this tool
+                  If empty, tool can be used in any namespace
+                items:
+                  type: string
+                type: array
+              defaultArgs:
+                description: DefaultArgs provides default arguments for the tool
+                items:
+                  type: string
+                type: array
+              description:
+                description: Description provides information about what this tool
+                  does
+                type: string
+              image:
+                description: Image is the container image for this power tool
+                type: string
+              name:
+                description: Name is the unique identifier for this power tool
+                type: string
+              securityContext:
+                description: SecurityContext defines the security context for this
+                  power tool
+                properties:
+                  allowHostPID:
+                    type: boolean
+                  allowPrivileged:
+                    type: boolean
+                  capabilities:
+                    description: Capabilities defines the container capabilities
+                    properties:
+                      add:
+                        items:
+                          type: string
+                        type: array
+                      drop:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                type: object
+              version:
+                description: Version specifies the tool version
+                type: string
+            required:
+            - image
+            - name
+            - securityContext
+            type: object
+          status:
+            description: status defines the observed state of PowerToolConfig
+            properties:
+              conditions:
+                description: Conditions represent the latest available observations
+                  of the PowerToolConfig's state
+                items:
+                  description: PowerToolConfigCondition represents a condition of
+                    a PowerToolConfig
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - status
+                  - type
+                  type: object
+                type: array
+              lastValidated:
+                description: LastValidated indicates when this configuration was last
+                  validated
+                format: date-time
+                type: string
+              phase:
+                description: Phase represents the current phase of the PowerToolConfig
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: powertools.codriverlabs.ai.toe.run
+spec:
+  group: codriverlabs.ai.toe.run
+  names:
+    kind: PowerTool
+    listKind: PowerToolList
+    plural: powertools
+    singular: powertool
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: PowerTool is the Schema for the powertools API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of PowerTool
+            properties:
+              budgets:
+                description: BudgetSpec defines the budget configuration
+                properties:
+                  maxConcurrentPods:
+                    format: int32
+                    type: integer
+                  perPodOverheadTarget:
+                    format: int32
+                    type: integer
+                type: object
+              failurePolicy:
+                description: FailurePolicySpec defines the failure policy
+                properties:
+                  backoff:
+                    description: BackoffSpec defines the backoff configuration
+                    properties:
+                      initial:
+                        type: string
+                      max:
+                        type: string
+                      multiplier:
+                        type: string
+                    type: object
+                  onError:
+                    type: string
+                type: object
+              output:
+                description: OutputSpec defines the output configuration
+                properties:
+                  collector:
+                    description: CollectorSpec defines the collector output configuration
+                    properties:
+                      endpoint:
+                        type: string
+                    required:
+                    - endpoint
+                    type: object
+                  compress:
+                    type: string
+                  mode:
+                    type: string
+                  pvc:
+                    description: PVCSpec defines the PVC output configuration
+                    properties:
+                      claimName:
+                        type: string
+                      path:
+                        type: string
+                    required:
+                    - claimName
+                    type: object
+                  retentionDays:
+                    format: int32
+                    type: integer
+                  rollingInterval:
+                    type: string
+                required:
+                - mode
+                type: object
+              schedule:
+                type: string
+              targets:
+                description: TargetSpec defines the target for tool execution
+                properties:
+                  container:
+                    type: string
+                  labelSelector:
+                    description: |-
+                      A label selector is a label query over a set of resources. The result of matchLabels and
+                      matchExpressions are ANDed. An empty label selector matches all objects. A null
+                      label selector matches no objects.
+                    properties:
+                      matchExpressions:
+                        description: matchExpressions is a list of label selector
+                          requirements. The requirements are ANDed.
+                        items:
+                          description: |-
+                            A label selector requirement is a selector that contains values, a key, and an operator that
+                            relates the key and values.
+                          properties:
+                            key:
+                              description: key is the label key that the selector
+                                applies to.
+                              type: string
+                            operator:
+                              description: |-
+                                operator represents a key's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists and DoesNotExist.
+                              type: string
+                            values:
+                              description: |-
+                                values is an array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty. This array is replaced during a strategic
+                                merge patch.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          required:
+                          - key
+                          - operator
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: atomic
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                          map is equivalent to an element of matchExpressions, whose key field is "key", the
+                          operator is "In", and the values array contains only "value". The requirements are ANDed.
+                        type: object
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  namespaceSelector:
+                    description: NamespaceSelector defines the namespace selection
+                      criteria
+                    properties:
+                      matchNames:
+                        items:
+                          type: string
+                        type: array
+                      matchRegex:
+                        type: string
+                    type: object
+                required:
+                - labelSelector
+                type: object
+              tool:
+                description: ToolSpec defines the tool configuration (renamed from
+                  ProfilerSpec)
+                properties:
+                  args:
+                    x-kubernetes-preserve-unknown-fields: true
+                  duration:
+                    type: string
+                  maxCPUPercent:
+                    format: int32
+                    type: integer
+                  name:
+                    type: string
+                  resolutionPreset:
+                    type: string
+                  warmup:
+                    type: string
+                required:
+                - duration
+                - name
+                type: object
+              ttlSecondsAfterFinished:
+                format: int32
+                type: integer
+            required:
+            - output
+            - targets
+            - tool
+            type: object
+          status:
+            description: status defines the observed state of PowerTool
+            properties:
+              activePods:
+                additionalProperties:
+                  type: string
+                type: object
+              artifacts:
+                items:
+                  type: string
+                type: array
+              bytesWritten:
+                type: string
+              completedPods:
+                format: int32
+                type: integer
+              conditions:
+                items:
+                  description: PowerToolCondition represents a condition of a PowerTool
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - status
+                  - type
+                  type: object
+                type: array
+              finishedAt:
+                format: date-time
+                type: string
+              lastError:
+                type: string
+              phase:
+                type: string
+              selectedPods:
+                format: int32
+                type: integer
+              startedAt:
+                format: date-time
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
