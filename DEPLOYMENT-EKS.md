@@ -75,6 +75,7 @@ helm install --create-namespace --namespace toe-system \
   --set-string global.registry.repository=$ECR_REGISTRY_PREFIX \
   --set-string controller.image.tag=$VERSION \
   --set-string collector.image.tag=$VERSION \
+  --set-string collector.storage.storageClass=efs-sc \
   toe-operator-$VERSION ./toe-operator
 ```
 
