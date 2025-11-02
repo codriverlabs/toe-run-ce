@@ -47,6 +47,14 @@ if [ ! -f "build/collector/Dockerfile" ]; then
     exit 1
 fi
 
+# Step 1: Build collector binary
+echo "Step 1: Building collector binary..."
+if ! make build-collector; then
+    echo "❌ Error: Collector binary build failed"
+    exit 1
+fi
+echo "✅ Collector binary built successfully"
+
 # ECR login if needed
 if [ "$REGISTRY_TYPE" = "ecr" ]; then
     if ! command -v aws &> /dev/null; then
@@ -63,7 +71,7 @@ if [ "$REGISTRY_TYPE" = "ecr" ]; then
 fi
 
 # Build Docker image
-echo "Building Docker image..."
+echo "Step 2: Building Docker image..."
 if ! docker build -f build/collector/Dockerfile -t "$IMAGE:$VERSION" .; then
     echo "❌ Error: Docker build failed for collector"
     exit 1
@@ -71,7 +79,7 @@ fi
 echo "✅ Docker image built successfully"
 
 # Push image
-echo "Pushing Docker image..."
+echo "Step 3: Pushing Docker image..."
 if ! docker push "$IMAGE:$VERSION"; then
     echo "❌ Error: Docker push failed"
     exit 1

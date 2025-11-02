@@ -173,7 +173,12 @@ spec:
                   ProfilerSpec)
                 properties:
                   args:
-                    x-kubernetes-preserve-unknown-fields: true
+                    description: |-
+                      Args provides additional arguments that will be appended to defaultArgs from PowerToolConfig
+                      Users cannot override administrator-defined defaultArgs for security
+                    items:
+                      type: string
+                    type: array
                   duration:
                     type: string
                   maxCPUPercent:

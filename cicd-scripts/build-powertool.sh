@@ -75,7 +75,7 @@ fi
 
 # Build Docker image
 echo "Building Docker image..."
-if ! docker build -t "$IMAGE:$VERSION" "$PROJECT_ROOT/power-tools/$TOOL_NAME"; then
+if ! docker build -t "$IMAGE:$VERSION" -f "$PROJECT_ROOT/power-tools/$TOOL_NAME/Dockerfile" "$PROJECT_ROOT/power-tools/"; then
     echo "❌ Error: Docker build failed for $TOOL_NAME"
     exit 1
 fi

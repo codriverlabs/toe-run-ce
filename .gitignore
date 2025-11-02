@@ -5,6 +5,8 @@
 *.so
 *.dylib
 bin/*
+!bin/README.md
+build/bin/*
 Dockerfile.cross
 
 # Test binary, built with `go test -c`
@@ -28,3 +30,6 @@ dist/
 *.swp
 *.swo
 *~
+
+# Compiled binaries
+/collector

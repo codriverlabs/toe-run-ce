@@ -6,7 +6,6 @@ Copyright 2025.
 package v1alpha1
 
 import (
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -41,12 +40,14 @@ type PowerToolSpec struct {
 
 // ToolSpec defines the tool configuration (renamed from ProfilerSpec)
 type ToolSpec struct {
-	Name             string                `json:"name"`
-	Args             *apiextensionsv1.JSON `json:"args,omitempty"`
-	Duration         string                `json:"duration"`
-	Warmup           *string               `json:"warmup,omitempty"`
-	ResolutionPreset *string               `json:"resolutionPreset,omitempty"`
-	MaxCPUPercent    *int32                `json:"maxCPUPercent,omitempty"`
+	Name string `json:"name"`
+	// Args provides additional arguments that will be appended to defaultArgs from PowerToolConfig
+	// Users cannot override administrator-defined defaultArgs for security
+	Args             []string `json:"args,omitempty"`
+	Duration         string   `json:"duration"`
+	Warmup           *string  `json:"warmup,omitempty"`
+	ResolutionPreset *string  `json:"resolutionPreset,omitempty"`
+	MaxCPUPercent    *int32   `json:"maxCPUPercent,omitempty"`
 }
 
 // PowerToolStatus defines the observed state of PowerTool

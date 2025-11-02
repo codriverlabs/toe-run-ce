@@ -9,7 +9,6 @@ Copyright 2025.
 package v1alpha1
 
 import (
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -554,6 +553,11 @@ func (in *SecuritySpec) DeepCopyInto(out *SecuritySpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.RunAsRoot != nil {
+		in, out := &in.RunAsRoot, &out.RunAsRoot
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Capabilities != nil {
 		in, out := &in.Capabilities, &out.Capabilities
 		*out = new(Capabilities)
@@ -606,8 +610,8 @@ func (in *ToolSpec) DeepCopyInto(out *ToolSpec) {
 	*out = *in
 	if in.Args != nil {
 		in, out := &in.Args, &out.Args
-		*out = new(apiextensionsv1.JSON)
-		(*in).DeepCopyInto(*out)
+		*out = make([]string, len(*in))
+		copy(*out, *in)
 	}
 	if in.Warmup != nil {
 		in, out := &in.Warmup, &out.Warmup

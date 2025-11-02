@@ -15,6 +15,7 @@ import (
 type Config struct {
 	Port        int
 	StoragePath string
+	DateFormat  string
 	TLSCert     string
 	TLSKey      string
 	SigningKey  []byte
@@ -22,13 +23,13 @@ type Config struct {
 
 type Server struct {
 	config  *Config
-	storage *storage.Manager
-	auth    *auth.K8sTokenValidator
+	storage StorageManager
+	auth    TokenValidator
 	server  *http.Server
 }
 
 func NewServer(cfg *Config, k8sClient kubernetes.Interface) (*Server, error) {
-	storageManager, err := storage.NewManager(cfg.StoragePath)
+	storageManager, err := storage.NewManager(cfg.StoragePath, cfg.DateFormat)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage manager: %w", err)
 	}
@@ -58,10 +59,8 @@ func (s *Server) Start() error {
 	return s.server.ListenAndServe()
 }
 
-func (s *Server) Shutdown() {
-	if err := s.server.Shutdown(context.Background()); err != nil {
-		log.Printf("Error shutting down server: %v", err)
-	}
+func (s *Server) Shutdown() error {
+	return s.server.Shutdown(context.Background())
 }
 
 func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
@@ -85,23 +84,36 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract job ID from request headers or URL
-	jobID := r.Header.Get("X-PowerTool-Job-ID")
-	if jobID == "" {
-		http.Error(w, "Missing X-PowerTool-Job-ID header", http.StatusBadRequest)
+	// Extract metadata from headers
+	namespace := r.Header.Get("X-PowerTool-Namespace")
+	matchingLabels := r.Header.Get("X-PowerTool-Matching-Labels")
+	powerToolName := r.Header.Get("X-PowerTool-Job-ID")
+	filename := r.Header.Get("X-PowerTool-Filename")
+
+	if namespace == "" || powerToolName == "" {
+		http.Error(w, "Missing required headers", http.StatusBadRequest)
 		return
 	}
 
-	// Extract filename from request headers (preferred) or use jobID as fallback
-	filename := r.Header.Get("X-PowerTool-Filename")
-	if filename == "" {
-		filename = fmt.Sprintf("%s.profile", jobID)
+	if matchingLabels == "" {
+		matchingLabels = "unknown"
 	}
 
-	// Log successful authentication
-	log.Printf("Authenticated request from %s for job %s, filename: %s", userInfo.Username, jobID, filename)
+	if filename == "" {
+		filename = fmt.Sprintf("%s.profile", powerToolName)
+	}
 
-	if err := s.storage.SaveProfile(r.Body, filename); err != nil {
+	metadata := storage.ProfileMetadata{
+		Namespace:     namespace,
+		AppLabel:      matchingLabels,
+		PowerToolName: powerToolName,
+		Filename:      filename,
+	}
+
+	log.Printf("Authenticated request from %s for job %s, saving to %s/%s/%s",
+		userInfo.Username, powerToolName, namespace, matchingLabels, powerToolName)
+
+	if err := s.storage.SaveProfile(r.Body, metadata); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to save profile: %v", err), http.StatusInternalServerError)
 		return
 	}

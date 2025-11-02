@@ -37,6 +37,11 @@ spec:
           mountPath: /certs
           readOnly: true
         env:
+        - name: DATE_FORMAT
+          valueFrom:
+            configMapKeyRef:
+              name: collector-config
+              key: dateFormat
         - name: TLS_CERT_PATH
           value: /certs/tls.crt
         - name: TLS_KEY_PATH

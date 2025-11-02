@@ -1,0 +1,21 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: chaos-storage-fill
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: database
+  tool:
+    name: "chaos"
+    duration: "3m"
+    args:
+      - "storage"
+      - "75"
+      - "/tmp"
+  output:
+    mode: "pvc"
+    pvc:
+      claimName: "chaos-logs"
+      path: "/logs"

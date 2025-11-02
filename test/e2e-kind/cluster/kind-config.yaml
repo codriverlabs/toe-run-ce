@@ -1,0 +1,21 @@
+# Kind cluster configuration for TOE E2E testing
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+# Single-node cluster for E2E testing
+nodes:
+- role: control-plane
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 10080
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 10443
+    protocol: TCP
+  - containerPort: 8443
+    hostPort: 18443
+    protocol: TCP
+
+# Feature gates for testing advanced features
+featureGates:
+  EphemeralContainers: true

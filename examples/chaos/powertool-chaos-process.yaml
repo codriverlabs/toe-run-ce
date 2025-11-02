@@ -1,0 +1,16 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: chaos-process-suspend
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: my-application
+  tool:
+    name: "chaos"
+    duration: "2m"
+    args:
+      - "suspend"
+  output:
+    mode: "ephemeral"

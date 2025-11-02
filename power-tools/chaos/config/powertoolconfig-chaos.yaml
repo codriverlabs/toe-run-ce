@@ -1,0 +1,24 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: chaos-config
+  namespace: toe-system
+spec:
+  name: "chaos"
+  description: "Comprehensive chaos engineering experiments: process, cpu, storage, network, memory"
+  image: localhost:32000/codriverlabs/toe/chaos:v1.0.63
+  securityContext:
+    allowPrivileged: true
+    capabilities:
+      add:
+        - SYS_PTRACE
+        - SYS_ADMIN
+        - KILL
+        - NET_ADMIN
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "1000m"

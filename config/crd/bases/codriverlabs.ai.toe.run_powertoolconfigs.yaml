@@ -61,6 +61,27 @@ spec:
               name:
                 description: Name is the unique identifier for this power tool
                 type: string
+              resources:
+                description: Resources defines the resource requirements for the ephemeral
+                  container
+                properties:
+                  limits:
+                    description: ResourceList defines CPU and memory resources
+                    properties:
+                      cpu:
+                        type: string
+                      memory:
+                        type: string
+                    type: object
+                  requests:
+                    description: ResourceList defines CPU and memory resources
+                    properties:
+                      cpu:
+                        type: string
+                      memory:
+                        type: string
+                    type: object
+                type: object
               securityContext:
                 description: SecurityContext defines the security context for this
                   power tool
@@ -81,6 +102,8 @@ spec:
                           type: string
                         type: array
                     type: object
+                  runAsRoot:
+                    type: boolean
                 type: object
               version:
                 description: Version specifies the tool version

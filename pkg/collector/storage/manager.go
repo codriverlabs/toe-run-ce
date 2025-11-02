@@ -5,24 +5,50 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 )
 
-type Manager struct {
-	basePath string
+type ProfileMetadata struct {
+	Namespace     string
+	AppLabel      string
+	PowerToolName string
+	Filename      string
 }
 
-func NewManager(basePath string) (*Manager, error) {
+type Manager struct {
+	basePath   string
+	dateFormat string
+}
+
+func NewManager(basePath, dateFormat string) (*Manager, error) {
 	if err := os.MkdirAll(basePath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
 	}
 
+	if dateFormat == "" {
+		return nil, fmt.Errorf("dateFormat is required")
+	}
+
 	return &Manager{
-		basePath: basePath,
+		basePath:   basePath,
+		dateFormat: dateFormat,
 	}, nil
 }
 
-func (m *Manager) SaveProfile(r io.Reader, filename string) error {
-	path := filepath.Join(m.basePath, filename)
+func (m *Manager) SaveProfile(r io.Reader, metadata ProfileMetadata) error {
+	datePath := time.Now().Format(m.dateFormat)
+	path := filepath.Join(
+		m.basePath,
+		metadata.Namespace,
+		metadata.AppLabel,
+		metadata.PowerToolName,
+		datePath,
+		metadata.Filename,
+	)
+
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
 
 	f, err := os.Create(path)
 	if err != nil {
@@ -30,7 +56,6 @@ func (m *Manager) SaveProfile(r io.Reader, filename string) error {
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
-			// Log error but don't fail the operation
 			_ = err
 		}
 	}()

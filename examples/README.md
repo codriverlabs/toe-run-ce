@@ -1,44 +1,86 @@
 # PowerTool Examples
 
-This directory contains example configurations for PowerTool and PowerToolConfig CRDs.
+This directory contains example PowerTool CRD configurations demonstrating how to use various power tools.
 
-## PowerToolConfig Examples
+## Directory Structure
 
-PowerToolConfig defines the configuration for individual power tools:
+```
+examples/
+├── configs/                    # General PowerToolConfig examples
+│   └── powertoolconfig-examples.yaml
+├── aperf/                      # Aperf performance profiling examples
+│   ├── powertool-aperf-ephemeral.yaml
+│   ├── powertool-aperf-pvc.yaml
+│   ├── powertool-aperf-collector.yaml
+│   └── powertool-conflict-test.yaml
+├── chaos/                      # Chaos engineering examples
+│   ├── powertool-chaos-cpu.yaml
+│   ├── powertool-chaos-memory.yaml
+│   ├── powertool-chaos-network.yaml
+│   ├── powertool-chaos-process.yaml
+│   ├── powertool-chaos-storage.yaml
+│   ├── powertool-chaos-terminate.yaml
+│   └── powertool-chaos-workflow.yaml
+├── tcpdump/                    # Network packet capture examples
+│   ├── powertool-tcpdump-ephemeral.yaml
+│   ├── powertool-tcpdump-pvc.yaml
+│   └── powertool-tcpdump-collector.yaml
+├── debug/                      # Debug profiles for kubectl debug
+│   ├── debug-root-profile.yaml
+│   ├── debug-root-perf-profile.yaml
+│   └── debug-root-with-group-profile.yaml
+├── testing/                    # Test resources for development
+│   ├── test-nonroot-pod.yaml
+│   ├── test-nonroot-powertool.yaml
+│   ├── test-multicontainer-pod.yaml
+│   └── test-multicontainer-powertool.yaml
+└── targets/                    # Example target pods
+    ├── target-pod-with-pvc.yaml
+    ├── target-statefulset.yaml
+    └── target-statefulset-spot.yaml
+```
 
-- `powertoolconfig-aperf.yaml` - Configuration for the aperf performance profiling tool
+## PowerToolConfig Location
+
+PowerToolConfig files (tool definitions) are located in the `power-tools/` directory:
+- `power-tools/aperf/config/powertoolconfig-aperf.yaml`
+- `power-tools/chaos/config/powertoolconfig-chaos.yaml`
+- `power-tools/tcpdump/config/powertoolconfig-tcpdump.yaml`
+
+See `power-tools/README.md` for more information about tool configurations.
 
 ## PowerTool Examples
 
-PowerTool defines the execution of power tools against target pods:
+### Aperf (Performance Profiling)
+- `aperf/powertool-aperf-ephemeral.yaml` - Ephemeral execution
+- `aperf/powertool-aperf-pvc.yaml` - Output to persistent volume
+- `aperf/powertool-aperf-collector.yaml` - Output to collector service
+- `aperf/powertool-conflict-test.yaml` - Conflict detection testing
 
-### Basic Examples
-- `powertool-aperf-ephemeral.yaml` - Simple ephemeral execution
-- `powertool-aperf-pvc.yaml` - Output to persistent volume
-- `powertool-collector.yaml` - Output to collector service
+### Chaos Engineering
+- `chaos/powertool-chaos-cpu.yaml` - CPU stress testing
+- `chaos/powertool-chaos-memory.yaml` - Memory stress testing
+- `chaos/powertool-chaos-network.yaml` - Network chaos injection
+- `chaos/powertool-chaos-process.yaml` - Process termination
+- `chaos/powertool-chaos-storage.yaml` - Storage I/O stress
+- `chaos/powertool-chaos-terminate.yaml` - Container termination
+- `chaos/powertool-chaos-workflow.yaml` - Multi-step chaos workflow
 
-### Advanced Examples
-- `powertool-scheduled.yaml` - Scheduled execution with cron
-- `powertool-conflict-test.yaml` - Conflict resolution testing
-- `test-token-config.yaml` - Custom token configuration
-
-## Legacy Examples (Deprecated)
-
-The following files use the old ProfileJob API and have been removed:
-- `aperf-ephemeral-example.yaml` (replaced by `powertool-aperf-ephemeral.yaml`)
-- `aperf-pvc-example.yaml` (replaced by `powertool-aperf-pvc.yaml`)
-- `conflict-test-example.yaml` (replaced by `powertool-conflict-test.yaml`)
+### TCPDump (Network Capture)
+- `tcpdump/powertool-tcpdump-ephemeral.yaml` - Ephemeral packet capture
+- `tcpdump/powertool-tcpdump-pvc.yaml` - Capture to persistent volume
+- `tcpdump/powertool-tcpdump-collector.yaml` - Capture to collector
 
 ## Usage
 
-1. **Deploy PowerToolConfig first:**
+1. **Deploy PowerToolConfig first (from power-tools directory):**
    ```bash
-   kubectl apply -f powertoolconfig-aperf.yaml
+   kubectl apply -f power-tools/aperf/config/powertoolconfig-aperf.yaml
    ```
 
-2. **Deploy PowerTool:**
+2. **Deploy PowerTool (from examples directory):**
    ```bash
-   kubectl apply -f powertool-aperf-ephemeral.yaml
+   kubectl apply -f examples/aperf/powertool-aperf-ephemeral.yaml
    ```
 
 3. **Check status:**
@@ -47,12 +89,25 @@ The following files use the old ProfileJob API and have been removed:
    kubectl describe powertool aperf-ephemeral-example
    ```
 
-## Migration Guide
+## Testing Resources
 
-To migrate from ProfileJob to PowerTool:
+The `testing/` directory contains resources for development and testing:
+- `test-nonroot-pod.yaml` - Non-root test pod (user 1001:1001)
+- `test-multicontainer-pod.yaml` - Multi-container test pod
+- `test-*-powertool.yaml` - PowerTools for testing scenarios
 
-1. Change `apiVersion` from `toe.run/v1alpha1` to `codriverlabs.ai.toe.run/v1alpha1`
-2. Change `kind` from `ProfileJob` to `PowerTool`
-3. Rename `spec.profiler` to `spec.tool`
-4. Update `spec.tool.tool` to `spec.tool.name`
-5. Create corresponding PowerToolConfig for tool definitions
+## Debug Profiles
+
+The `debug/` directory contains custom profiles for `kubectl debug` testing:
+- `debug-root-profile.yaml` - Basic root access (runAsUser: 0)
+- `debug-root-perf-profile.yaml` - Root with performance capabilities (SYS_PTRACE, PERFMON, SYS_ADMIN)
+- `debug-root-with-group-profile.yaml` - Root with group inheritance
+
+These profiles demonstrate the `runAsRoot` feature implementation.
+
+## Target Examples
+
+The `targets/` directory contains example target pods for testing:
+- `target-pod-with-pvc.yaml` - Pod with PVC mount
+- `target-statefulset.yaml` - StatefulSet example
+- `target-statefulset-spot.yaml` - StatefulSet with spot instances

@@ -3,6 +3,8 @@ IMG ?= controller:latest
 CONTROLLER_IMG ?= ghcr.io/codriverlabs/toe-controller:$(VERSION)
 COLLECTOR_IMG ?= ghcr.io/codriverlabs/toe-collector:$(VERSION)
 APERF_IMG ?= ghcr.io/codriverlabs/toe-aperf:$(VERSION)
+TCPDUMP_IMG ?= ghcr.io/codriverlabs/toe-tcpdump:$(VERSION)
+CHAOS_IMG ?= ghcr.io/codriverlabs/toe-chaos:$(VERSION)
 VERSION ?= v1.0.47
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -65,6 +67,21 @@ vet: ## Run go vet against code.
 test: manifests generate fmt vet setup-envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
+
+
+.PHONY: test-e2e-focus
+test-e2e-focus: manifests generate fmt vet setup-envtest ## Run focused E2E tests
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+	go test ./test/e2e/... -v -ginkgo.focus="$(FOCUS)"
+
+.PHONY: test-e2e-parallel
+test-e2e-parallel: manifests generate fmt vet setup-envtest ## Run E2E tests in parallel
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+	go test ./test/e2e/... -v -ginkgo.procs=4
+
+.PHONY: test-all
+test-all: test test-e2e ## Run all tests (unit + E2E)
+
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
 # CertManager is installed by default; skip with:
@@ -110,7 +127,13 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+	mkdir -p build/bin
+	go build -o build/bin/manager cmd/main.go
+
+.PHONY: build-collector
+build-collector: fmt vet ## Build collector binary.
+	mkdir -p build/bin
+	go build -o build/bin/collector cmd/collector/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -129,17 +152,33 @@ docker-push: ## Push docker image with the manager.
 
 .PHONY: docker-build-aperf
 docker-build-aperf: ## Build aperf power tool docker image.
-	$(CONTAINER_TOOL) build -t ghcr.io/codriverlabs/toe-aperf:$(VERSION) power-tools/aperf/
+	$(CONTAINER_TOOL) build -t ghcr.io/codriverlabs/toe-aperf:$(VERSION) -f power-tools/aperf/Dockerfile power-tools/
 
 .PHONY: docker-push-aperf
 docker-push-aperf: ## Push aperf power tool docker image.
 	$(CONTAINER_TOOL) push ghcr.io/codriverlabs/toe-aperf:$(VERSION)
 
+.PHONY: docker-build-tcpdump
+docker-build-tcpdump: ## Build tcpdump power tool docker image.
+	$(CONTAINER_TOOL) build -t ghcr.io/codriverlabs/toe-tcpdump:$(VERSION) -f power-tools/tcpdump/Dockerfile power-tools/
+
+.PHONY: docker-push-tcpdump
+docker-push-tcpdump: ## Push tcpdump power tool docker image.
+	$(CONTAINER_TOOL) push ghcr.io/codriverlabs/toe-tcpdump:$(VERSION)
+
+.PHONY: docker-build-chaos
+docker-build-chaos: ## Build chaos power tool docker image.
+	$(CONTAINER_TOOL) build -t ghcr.io/codriverlabs/toe-chaos:$(VERSION) -f power-tools/chaos/Dockerfile power-tools/
+
+.PHONY: docker-push-chaos
+docker-push-chaos: ## Push chaos power tool docker image.
+	$(CONTAINER_TOOL) push ghcr.io/codriverlabs/toe-chaos:$(VERSION)
+
 .PHONY: docker-build-all
-docker-build-all: docker-build docker-build-aperf ## Build all docker images.
+docker-build-all: docker-build docker-build-aperf docker-build-tcpdump docker-build-chaos ## Build all docker images.
 
 .PHONY: docker-push-all
-docker-push-all: docker-push docker-push-aperf ## Push all docker images.
+docker-push-all: docker-push docker-push-aperf docker-push-tcpdump docker-push-chaos ## Push all docker images.
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -161,7 +200,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 ##@ GitHub Release
 
 .PHONY: github-release
-github-release: helm-chart helm-package build-installer ## Generate all release artifacts for GitHub
+github-release: helm-chart release-package build-installer ## Generate all release artifacts for GitHub
 	@echo "🚀 Generating GitHub release artifacts..."
 	
 	# Create release directory
@@ -245,8 +284,8 @@ helm-chart: manifests generate kustomize ## Generate Helm chart with configurabl
 	
 	@echo "✅ Helm chart generated in dist/helm/toe-operator/"
 
-.PHONY: helm-package
-helm-package: helm-chart ## Package Helm chart into .tgz file
+.PHONY: release-package
+release-package: helm-chart ## Package Helm chart into .tgz file
 	@command -v helm >/dev/null 2>&1 || { echo "❌ Helm is required. Install from https://helm.sh/docs/intro/install/"; exit 1; }
 	# Update Chart.yaml version before packaging
 	sed -i 's/^version: .*/version: $(VERSION)/' dist/helm/toe-operator/Chart.yaml
@@ -254,13 +293,20 @@ helm-package: helm-chart ## Package Helm chart into .tgz file
 	# Copy ECR sync script to helm chart directory
 	mkdir -p dist/helm/toe-operator/scripts
 	cp helper_scripts/ecr/sync-images-from-ghcr-to-ecr.sh dist/helm/toe-operator/scripts/
-	# Copy examples folder and update image references
+	# Copy examples folder
 	mkdir -p dist/helm/toe-operator/examples
 	cp -r examples/* dist/helm/toe-operator/examples/
-	# Update aperf image reference in powertoolconfig-aperf.yaml
-	if [ -f "dist/helm/toe-operator/examples/powertoolconfig-aperf.yaml" ]; then \
-		sed -i 's|image: .*|image: $(APERF_IMG)|g' dist/helm/toe-operator/examples/powertoolconfig-aperf.yaml; \
-	fi
+	# Copy power-tools configs and update image references
+	mkdir -p dist/helm/toe-operator/power-tools/aperf/config
+	mkdir -p dist/helm/toe-operator/power-tools/chaos/config
+	mkdir -p dist/helm/toe-operator/power-tools/tcpdump/config
+	cp power-tools/aperf/config/powertoolconfig-aperf.yaml dist/helm/toe-operator/power-tools/aperf/config/
+	cp power-tools/chaos/config/powertoolconfig-chaos.yaml dist/helm/toe-operator/power-tools/chaos/config/
+	cp power-tools/tcpdump/config/powertoolconfig-tcpdump.yaml dist/helm/toe-operator/power-tools/tcpdump/config/
+	# Update image references in PowerToolConfig files
+	sed -i 's|image: .*|image: "$(APERF_IMG)"|g' dist/helm/toe-operator/power-tools/aperf/config/powertoolconfig-aperf.yaml
+	sed -i 's|image: .*|image: "$(CHAOS_IMG)"|g' dist/helm/toe-operator/power-tools/chaos/config/powertoolconfig-chaos.yaml
+	sed -i 's|image: .*|image: "$(TCPDUMP_IMG)"|g' dist/helm/toe-operator/power-tools/tcpdump/config/powertoolconfig-tcpdump.yaml
 	cd dist/helm && helm package toe-operator
 	@echo "✅ Helm chart packaged: dist/helm/toe-operator-$(VERSION).tgz"
 
@@ -285,7 +331,7 @@ render-locally-helm-chart: ## Render Helm chart locally with custom values for t
 	# Generate and package Helm chart
 	$(MAKE) manifests
 	$(MAKE) helm-chart
-	$(MAKE) helm-package
+	$(MAKE) release-package
 	
 	# Extract and render chart with custom values
 	mkdir -p ./tmp
@@ -325,6 +371,14 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+
+.PHONY: deploy-configs
+deploy-configs: ## Deploy PowerToolConfig resources to the cluster
+	@echo "🔧 Deploying PowerToolConfigs..."
+	$(KUBECTL) apply -f power-tools/aperf/config/powertoolconfig-aperf.yaml
+	$(KUBECTL) apply -f power-tools/chaos/config/powertoolconfig-chaos.yaml
+	$(KUBECTL) apply -f power-tools/tcpdump/config/powertoolconfig-tcpdump.yaml
+	@echo "✅ PowerToolConfigs deployed"
 
 .PHONY: undeploy-controller-only
 undeploy-controller-only: kustomize ## Undeploy only controller resources, preserving namespace and other components

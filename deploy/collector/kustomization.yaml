@@ -1,4 +1,5 @@
 resources:
+- configmap.yaml
 - pvc.yaml
 - deployment.yaml
 
@@ -7,6 +8,6 @@ resources:
 
 images:
 - name: localhost:32000/codriverlabs/toe-collector
-  newTag: 1.0.20-beta
+  newTag: v1.0.47
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

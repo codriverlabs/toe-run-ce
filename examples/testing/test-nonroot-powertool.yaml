@@ -1,0 +1,25 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: aperf-nonroot-test
+  namespace: toe-test
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: busybox-test
+    container: "main-container"
+  tool:
+    name: "aperf"
+    duration: "10s"
+    warmup: "5s"
+  output:
+    mode: "collector"
+    collector:
+      endpoint: "https://toe-collector.toe-system.svc.cluster.local:8443"
+  failurePolicy:
+    onError: "stop"
+    backoff:
+      initial: "10s"
+      max: "5m"
+      multiplier: "2"

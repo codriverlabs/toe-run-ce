@@ -1,0 +1,12 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: aperf-config
+  namespace: toe-system
+spec:
+  name: aperf
+  image: ghcr.io/codriverlabs/toe-aperf:latest
+  securityContext:
+    privileged: true
+    capabilities:
+      add: ["SYS_ADMIN", "SYS_PTRACE"]

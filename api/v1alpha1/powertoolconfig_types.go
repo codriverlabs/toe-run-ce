@@ -39,6 +39,10 @@ type PowerToolConfigSpec struct {
 	// DefaultArgs provides default arguments for the tool
 	// +optional
 	DefaultArgs []string `json:"defaultArgs,omitempty"`
+
+	// Resources defines the resource requirements for the ephemeral container
+	// +optional
+	Resources *ResourceSpec `json:"resources,omitempty"`
 }
 
 // PowerToolConfigStatus defines the observed state of PowerToolConfig

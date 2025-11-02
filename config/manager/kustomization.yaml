@@ -6,4 +6,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: localhost:32000/codriverlabs/toe-k8s-operator
-  newTag: v1.0.46
+  newTag: v1.0.53

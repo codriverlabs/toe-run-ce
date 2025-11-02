@@ -9,6 +9,7 @@ if [ $# -ne 1 ]; then
 fi
 
 PROFILE_FILE="$1"
+FILENAME=$(basename "$PROFILE_FILE")
 
 # Validate required environment variables
 if [ -z "$COLLECTOR_TOKEN" ]; then
@@ -18,6 +19,11 @@ fi
 
 if [ -z "$POWERTOOL_JOB_ID" ]; then
     echo "Error: POWERTOOL_JOB_ID not set"
+    exit 1
+fi
+
+if [ -z "$TARGET_NAMESPACE" ]; then
+    echo "Error: TARGET_NAMESPACE not set"
     exit 1
 fi
 
@@ -34,11 +40,14 @@ elif [[ "$COLLECTOR_ENDPOINT" == https://* ]]; then
     CURL_OPTS="--insecure"
 fi
 
-# Send profile data with job ID header
+# Send profile data with metadata headers
 curl -X POST \
     $CURL_OPTS \
     -H "Authorization: Bearer $COLLECTOR_TOKEN" \
     -H "X-PowerTool-Job-ID: $POWERTOOL_JOB_ID" \
+    -H "X-PowerTool-Namespace: $TARGET_NAMESPACE" \
+    -H "X-PowerTool-Matching-Labels: ${POD_MATCHING_LABELS:-unknown}" \
+    -H "X-PowerTool-Filename: $FILENAME" \
     -H "Content-Type: application/octet-stream" \
     --data-binary "@$PROFILE_FILE" \
     "$COLLECTOR_ENDPOINT/api/v1/profile"

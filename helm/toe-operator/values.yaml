@@ -59,6 +59,16 @@ powertools:
       image:
         # Repository will be: global.registry.repository + "/toe-aperf"
         tag: "1.1.4-beta"
+    tcpdump:
+      enabled: true
+      image:
+        # Repository will be: global.registry.repository + "/toe-tcpdump"
+        tag: "1.1.4-beta"
+    chaos:
+      enabled: true
+      image:
+        # Repository will be: global.registry.repository + "/toe-chaos"
+        tag: "1.1.4-beta"
 
 # RBAC configuration
 rbac:

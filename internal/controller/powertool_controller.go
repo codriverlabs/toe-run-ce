@@ -2,11 +2,12 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -107,24 +108,42 @@ func (r *PowerToolReconciler) getTokenDuration(ctx context.Context, collectionDu
 
 // buildPowerToolEnvVars builds environment variables from PowerTool spec
 func (r *PowerToolReconciler) buildPowerToolEnvVars(job *toev1alpha1.PowerTool, targetPod corev1.Pod) []corev1.EnvVar {
+	// Extract matching labels from the PowerTool's label selector
+	matchingLabels := r.extractMatchingLabels(job.Spec.Targets.LabelSelector, targetPod.Labels)
+
+	// Determine target container name
+	targetContainerName := "default"
+	if job.Spec.Targets.Container != nil && *job.Spec.Targets.Container != "" {
+		targetContainerName = *job.Spec.Targets.Container
+	} else if len(targetPod.Spec.Containers) > 0 {
+		targetContainerName = targetPod.Spec.Containers[0].Name
+	}
+
 	envVars := []corev1.EnvVar{
 		{Name: "PROFILER_TOOL", Value: job.Spec.Tool.Name},
 		{Name: "PROFILER_DURATION", Value: job.Spec.Tool.Duration},
 		{Name: "TARGET_POD_NAME", Value: targetPod.Name},
 		{Name: "TARGET_NAMESPACE", Value: targetPod.Namespace},
+		{Name: "TARGET_CONTAINER_NAME", Value: targetContainerName},
+		{Name: "POD_MATCHING_LABELS", Value: matchingLabels},
 		{Name: "OUTPUT_MODE", Value: job.Spec.Output.Mode},
 	}
 
 	// Add tool-specific arguments as environment variables
-	if job.Spec.Tool.Args != nil && job.Spec.Tool.Args.Raw != nil {
-		var args map[string]interface{}
-		if err := json.Unmarshal(job.Spec.Tool.Args.Raw, &args); err == nil {
-			for key, value := range args {
-				envVars = append(envVars, corev1.EnvVar{
-					Name:  fmt.Sprintf("TOOL_ARG_%s", key),
-					Value: fmt.Sprintf("%v", value),
-				})
-			}
+	if job.Spec.Tool.Args != nil && len(job.Spec.Tool.Args) > 0 {
+		// Convert args slice to a single environment variable
+		argsStr := strings.Join(job.Spec.Tool.Args, " ")
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "TOOL_ARGS",
+			Value: argsStr,
+		})
+
+		// Also add individual args as numbered environment variables
+		for i, arg := range job.Spec.Tool.Args {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  fmt.Sprintf("TOOL_ARG_%d", i),
+				Value: arg,
+			})
 		}
 	}
 
@@ -139,6 +158,27 @@ func (r *PowerToolReconciler) buildPowerToolEnvVars(job *toev1alpha1.PowerTool, 
 	return envVars
 }
 
+// extractMatchingLabels extracts the labels that matched the selector
+func (r *PowerToolReconciler) extractMatchingLabels(selector *metav1.LabelSelector, podLabels map[string]string) string {
+	if selector == nil || selector.MatchLabels == nil {
+		return "unknown"
+	}
+
+	// Build a compact representation of matching labels: key-value
+	var labels []string
+	for key, value := range selector.MatchLabels {
+		if podValue, exists := podLabels[key]; exists && podValue == value {
+			labels = append(labels, fmt.Sprintf("%s-%s", key, value))
+		}
+	}
+
+	if len(labels) == 0 {
+		return "unknown"
+	}
+
+	return labels[0] // Use first matching label for path organization
+}
+
 // findPVCVolumeName finds the volume name for a given PVC claim name in the pod
 func (r *PowerToolReconciler) findPVCVolumeName(pod corev1.Pod, claimName string) string {
 	for _, volume := range pod.Spec.Volumes {
@@ -148,6 +188,32 @@ func (r *PowerToolReconciler) findPVCVolumeName(pod corev1.Pod, claimName string
 	}
 	// Return a default name if not found
 	return "profiling-storage"
+}
+
+// getTargetContainer returns the target container from the pod
+// If targetContainerName is specified, it finds that container
+// Otherwise, it returns the first container
+func (r *PowerToolReconciler) getTargetContainer(pod corev1.Pod, targetContainerName *string) *corev1.Container {
+	// If no container specified, use first container
+	if targetContainerName == nil || *targetContainerName == "" {
+		if len(pod.Spec.Containers) > 0 {
+			return &pod.Spec.Containers[0]
+		}
+		return nil
+	}
+
+	// Find the specified container
+	for i := range pod.Spec.Containers {
+		if pod.Spec.Containers[i].Name == *targetContainerName {
+			return &pod.Spec.Containers[i]
+		}
+	}
+
+	// Container not found, fallback to first
+	if len(pod.Spec.Containers) > 0 {
+		return &pod.Spec.Containers[0]
+	}
+	return nil
 }
 
 // buildSecurityContext converts SecuritySpec to SecurityContext
@@ -480,6 +546,12 @@ func (r *PowerToolReconciler) isContainerRunning(pod corev1.Pod, containerName s
 func (r *PowerToolReconciler) createEphemeralContainerForPod(ctx context.Context, powerTool *toev1alpha1.PowerTool, toolConfig *toev1alpha1.PowerToolConfig, pod corev1.Pod, containerName string) error {
 	logger := log.FromContext(ctx)
 
+	// Get target container
+	targetContainer := r.getTargetContainer(pod, powerTool.Spec.Targets.Container)
+	if targetContainer != nil {
+		logger.Info("Target container identified", "container", targetContainer.Name)
+	}
+
 	// Build environment variables
 	envVars := r.buildPowerToolEnvVars(powerTool, pod)
 
@@ -506,6 +578,70 @@ func (r *PowerToolReconciler) createEphemeralContainerForPod(ctx context.Context
 		)
 	}
 
+	// Build base security context from toolConfig
+	securityContext := r.buildSecurityContext(toolConfig.Spec.SecurityContext)
+
+	// Check if runAsRoot is enabled
+	runAsRoot := toolConfig.Spec.SecurityContext.RunAsRoot != nil && *toolConfig.Spec.SecurityContext.RunAsRoot
+
+	if runAsRoot {
+		// Override user to root
+		rootUser := int64(0)
+		securityContext.RunAsUser = &rootUser
+		runAsNonRootFalse := false
+		securityContext.RunAsNonRoot = &runAsNonRootFalse
+		logger.Info("Running as root due to runAsRoot=true")
+
+		// Inherit group from target container or pod for file compatibility
+		if targetContainer != nil && targetContainer.SecurityContext != nil && targetContainer.SecurityContext.RunAsGroup != nil {
+			securityContext.RunAsGroup = targetContainer.SecurityContext.RunAsGroup
+			logger.Info("Inherited runAsGroup from target container for root user",
+				"container", targetContainer.Name,
+				"group", *targetContainer.SecurityContext.RunAsGroup)
+		} else if pod.Spec.SecurityContext != nil && pod.Spec.SecurityContext.RunAsGroup != nil {
+			securityContext.RunAsGroup = pod.Spec.SecurityContext.RunAsGroup
+			logger.Info("Inherited runAsGroup from pod for root user", "group", *pod.Spec.SecurityContext.RunAsGroup)
+		}
+	} else {
+		// Normal inheritance: pod-level first, then container-level override
+		if pod.Spec.SecurityContext != nil {
+			if pod.Spec.SecurityContext.RunAsUser != nil {
+				securityContext.RunAsUser = pod.Spec.SecurityContext.RunAsUser
+				logger.Info("Inherited runAsUser from pod", "user", *pod.Spec.SecurityContext.RunAsUser)
+			}
+			if pod.Spec.SecurityContext.RunAsGroup != nil {
+				securityContext.RunAsGroup = pod.Spec.SecurityContext.RunAsGroup
+				logger.Info("Inherited runAsGroup from pod", "group", *pod.Spec.SecurityContext.RunAsGroup)
+			}
+			if pod.Spec.SecurityContext.RunAsNonRoot != nil {
+				securityContext.RunAsNonRoot = pod.Spec.SecurityContext.RunAsNonRoot
+				logger.Info("Inherited runAsNonRoot from pod", "nonRoot", *pod.Spec.SecurityContext.RunAsNonRoot)
+			}
+		}
+
+		// Override with target container's security context if available
+		if targetContainer != nil && targetContainer.SecurityContext != nil {
+			if targetContainer.SecurityContext.RunAsUser != nil {
+				securityContext.RunAsUser = targetContainer.SecurityContext.RunAsUser
+				logger.Info("Inherited runAsUser from target container",
+					"container", targetContainer.Name,
+					"user", *targetContainer.SecurityContext.RunAsUser)
+			}
+			if targetContainer.SecurityContext.RunAsGroup != nil {
+				securityContext.RunAsGroup = targetContainer.SecurityContext.RunAsGroup
+				logger.Info("Inherited runAsGroup from target container",
+					"container", targetContainer.Name,
+					"group", *targetContainer.SecurityContext.RunAsGroup)
+			}
+			if targetContainer.SecurityContext.RunAsNonRoot != nil {
+				securityContext.RunAsNonRoot = targetContainer.SecurityContext.RunAsNonRoot
+				logger.Info("Inherited runAsNonRoot from target container",
+					"container", targetContainer.Name,
+					"nonRoot", *targetContainer.SecurityContext.RunAsNonRoot)
+			}
+		}
+	}
+
 	// Create ephemeral container
 	ec := &corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
@@ -513,7 +649,8 @@ func (r *PowerToolReconciler) createEphemeralContainerForPod(ctx context.Context
 			Image:           toolConfig.Spec.Image,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
-			SecurityContext: r.buildSecurityContext(toolConfig.Spec.SecurityContext),
+			SecurityContext: securityContext,
+			Resources:       r.buildResourceRequirements(toolConfig),
 		},
 	}
 
@@ -540,6 +677,37 @@ func (r *PowerToolReconciler) createEphemeralContainerForPod(ctx context.Context
 		"image", toolConfig.Spec.Image)
 
 	return nil
+}
+
+// buildResourceRequirements converts ResourceSpec to Kubernetes ResourceRequirements
+func (r *PowerToolReconciler) buildResourceRequirements(toolConfig *toev1alpha1.PowerToolConfig) corev1.ResourceRequirements {
+	if toolConfig.Spec.Resources == nil {
+		return corev1.ResourceRequirements{}
+	}
+
+	requirements := corev1.ResourceRequirements{}
+
+	if toolConfig.Spec.Resources.Requests != nil {
+		requirements.Requests = corev1.ResourceList{}
+		if toolConfig.Spec.Resources.Requests.CPU != nil {
+			requirements.Requests[corev1.ResourceCPU] = resource.MustParse(*toolConfig.Spec.Resources.Requests.CPU)
+		}
+		if toolConfig.Spec.Resources.Requests.Memory != nil {
+			requirements.Requests[corev1.ResourceMemory] = resource.MustParse(*toolConfig.Spec.Resources.Requests.Memory)
+		}
+	}
+
+	if toolConfig.Spec.Resources.Limits != nil {
+		requirements.Limits = corev1.ResourceList{}
+		if toolConfig.Spec.Resources.Limits.CPU != nil {
+			requirements.Limits[corev1.ResourceCPU] = resource.MustParse(*toolConfig.Spec.Resources.Limits.CPU)
+		}
+		if toolConfig.Spec.Resources.Limits.Memory != nil {
+			requirements.Limits[corev1.ResourceMemory] = resource.MustParse(*toolConfig.Spec.Resources.Limits.Memory)
+		}
+	}
+
+	return requirements
 }
 
 // SetupWithManager sets up the controller with the Manager.

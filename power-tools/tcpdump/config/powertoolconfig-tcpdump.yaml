@@ -1,0 +1,18 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: tcpdump-config
+  namespace: toe-system
+spec:
+  name: "tcpdump"
+  description: "Network packet capture using tcpdump"
+  image: ghcr.io/codriverlabs/toe-tcpdump:v1.0.47
+  defaultArgs:
+    - "-i"
+    - "any"
+  securityContext:
+    runAsRoot: true
+    capabilities:
+      add:
+        - NET_ADMIN
+        - NET_RAW

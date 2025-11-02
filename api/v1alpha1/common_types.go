@@ -55,6 +55,7 @@ type BudgetSpec struct {
 type SecuritySpec struct {
 	AllowPrivileged *bool         `json:"allowPrivileged,omitempty"`
 	AllowHostPID    *bool         `json:"allowHostPID,omitempty"`
+	RunAsRoot       *bool         `json:"runAsRoot,omitempty"`
 	Capabilities    *Capabilities `json:"capabilities,omitempty"`
 }
 
@@ -75,4 +76,16 @@ type BackoffSpec struct {
 	Initial    *string `json:"initial,omitempty"`
 	Max        *string `json:"max,omitempty"`
 	Multiplier *string `json:"multiplier,omitempty"`
+}
+
+// ResourceSpec defines resource requirements
+type ResourceSpec struct {
+	Requests *ResourceList `json:"requests,omitempty"`
+	Limits   *ResourceList `json:"limits,omitempty"`
+}
+
+// ResourceList defines CPU and memory resources
+type ResourceList struct {
+	CPU    *string `json:"cpu,omitempty"`
+	Memory *string `json:"memory,omitempty"`
 }

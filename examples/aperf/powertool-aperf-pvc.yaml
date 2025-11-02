@@ -1,0 +1,26 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: aperf-pvc-example
+  namespace: toe-test
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: nginx-cluster
+    container: "main-container"
+  tool:
+    name: "aperf"
+    duration: "30s"
+    resolutionPreset: "high"
+    maxCPUPercent: 10
+  output:
+    mode: "pvc"
+    pvc:
+      claimName: "profiling-data-pvc"
+      path: "/data/profiles"
+    compress: "gzip"
+    retentionDays: 7
+  budgets:
+    maxConcurrentPods: 3
+    perPodOverheadTarget: 5

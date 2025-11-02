@@ -18,11 +18,11 @@ RUN ARCH=$(uname -m) && \
     rm -rf aperf.tar.gz aperf-v0.1.18-alpha-${APERF_ARCH}
 
 # Create entrypoint script
-COPY entrypoint.sh /entrypoint.sh
+COPY aperf/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Copy common scripts
-COPY send-profile.sh /usr/local/bin/send-profile.sh
+COPY aperf/send-profile.sh /usr/local/bin/send-profile.sh
 RUN chmod +x /usr/local/bin/send-profile.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

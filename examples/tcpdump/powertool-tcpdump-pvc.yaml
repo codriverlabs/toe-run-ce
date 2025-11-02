@@ -1,0 +1,19 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: tcpdump-persistent-capture
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: web-server
+  tool:
+    name: "tcpdump"
+    duration: "5m"
+    args:
+      - "tcp and not port 22"
+  output:
+    mode: "pvc"
+    pvc:
+      claimName: "tcpdump-storage"
+      path: "/captures"

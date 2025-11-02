@@ -12,6 +12,8 @@ IMAGES=(
     "toe-controller"
     "toe-collector"
     "toe-aperf"
+    "toe-tcpdump"
+    "toe-chaos"
 )
 
 usage() {

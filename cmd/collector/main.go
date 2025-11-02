@@ -13,9 +13,15 @@ import (
 )
 
 func main() {
+	dateFormat := os.Getenv("DATE_FORMAT")
+	if dateFormat == "" {
+		log.Fatalf("DATE_FORMAT environment variable is required")
+	}
+
 	cfg := &server.Config{
 		Port:        8443,
 		StoragePath: "/data",
+		DateFormat:  dateFormat,
 		TLSCert:     os.Getenv("TLS_CERT_PATH"),
 		TLSKey:      os.Getenv("TLS_KEY_PATH"),
 	}
@@ -47,5 +53,7 @@ func main() {
 	}()
 
 	<-sigChan
-	srv.Shutdown()
+	if err := srv.Shutdown(); err != nil {
+		log.Printf("Error shutting down server: %v", err)
+	}
 }

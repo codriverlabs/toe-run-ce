@@ -10,9 +10,29 @@ env:
   CONTROLLER_IMAGE: ghcr.io/codriverlabs/toe-controller
   COLLECTOR_IMAGE: ghcr.io/codriverlabs/toe-collector
   APERF_IMAGE: ghcr.io/codriverlabs/toe-aperf
+  TCPDUMP_IMAGE: ghcr.io/codriverlabs/toe-tcpdump
+  CHAOS_IMAGE: ghcr.io/codriverlabs/toe-chaos
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.go-version.outputs.version }}
+      release-version: ${{ steps.release-version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      
+      - name: Extract Go version
+        id: go-version
+        run: echo "version=$(cat .go-version)" >> $GITHUB_OUTPUT
+      
+      - name: Extract release version
+        id: release-version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
   build-and-release:
+    needs: prepare
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -31,7 +51,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: ${{ needs.prepare.outputs.go-version }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -45,7 +65,7 @@ jobs:
 
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${{ needs.prepare.outputs.release-version }}" >> $GITHUB_OUTPUT
 
       - name: Set image names based on repository
         id: images
@@ -54,10 +74,14 @@ jobs:
             echo "CONTROLLER_IMAGE=ghcr.io/codriverlabs/ce/toe-controller" >> $GITHUB_OUTPUT
             echo "COLLECTOR_IMAGE=ghcr.io/codriverlabs/ce/toe-collector" >> $GITHUB_OUTPUT
             echo "APERF_IMAGE=ghcr.io/codriverlabs/ce/toe-aperf" >> $GITHUB_OUTPUT
+            echo "TCPDUMP_IMAGE=ghcr.io/codriverlabs/ce/toe-tcpdump" >> $GITHUB_OUTPUT
+            echo "CHAOS_IMAGE=ghcr.io/codriverlabs/ce/toe-chaos" >> $GITHUB_OUTPUT
           else
             echo "CONTROLLER_IMAGE=${{ env.CONTROLLER_IMAGE }}" >> $GITHUB_OUTPUT
             echo "COLLECTOR_IMAGE=${{ env.COLLECTOR_IMAGE }}" >> $GITHUB_OUTPUT
             echo "APERF_IMAGE=${{ env.APERF_IMAGE }}" >> $GITHUB_OUTPUT
+            echo "TCPDUMP_IMAGE=${{ env.TCPDUMP_IMAGE }}" >> $GITHUB_OUTPUT
+            echo "CHAOS_IMAGE=${{ env.CHAOS_IMAGE }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and push controller image
@@ -69,6 +93,8 @@ jobs:
           tags: |
             ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}
             ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-${{ matrix.arch }}
+          build-args: |
+            GO_VERSION=${{ needs.prepare.outputs.go-version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -82,13 +108,16 @@ jobs:
           tags: |
             ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}
             ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-${{ matrix.arch }}
+          build-args: |
+            GO_VERSION=${{ needs.prepare.outputs.go-version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build and push aperf image
         uses: docker/build-push-action@v6
         with:
-          context: power-tools/aperf
+          context: power-tools
+          file: power-tools/aperf/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           tags: |
@@ -97,7 +126,34 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build and push tcpdump image
+        uses: docker/build-push-action@v6
+        with:
+          context: power-tools
+          file: power-tools/tcpdump/Dockerfile
+          push: true
+          platforms: ${{ matrix.platform }}
+          tags: |
+            ${{ steps.images.outputs.TCPDUMP_IMAGE }}:${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}
+            ${{ steps.images.outputs.TCPDUMP_IMAGE }}:latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push chaos image
+        uses: docker/build-push-action@v6
+        with:
+          context: power-tools
+          file: power-tools/chaos/Dockerfile
+          push: true
+          platforms: ${{ matrix.platform }}
+          tags: |
+            ${{ steps.images.outputs.CHAOS_IMAGE }}:${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}
+            ${{ steps.images.outputs.CHAOS_IMAGE }}:latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   build-arm64:
+    needs: prepare
     runs-on: ubuntu-24.04-arm
     if: github.repository == 'codriverlabs/toe-run-ce'
     permissions:
@@ -111,7 +167,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: ${{ needs.prepare.outputs.go-version }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -125,7 +181,7 @@ jobs:
 
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${{ needs.prepare.outputs.release-version }}" >> $GITHUB_OUTPUT
 
       - name: Set image names for public repository
         id: images
@@ -133,6 +189,8 @@ jobs:
           echo "CONTROLLER_IMAGE=ghcr.io/codriverlabs/ce/toe-controller" >> $GITHUB_OUTPUT
           echo "COLLECTOR_IMAGE=ghcr.io/codriverlabs/ce/toe-collector" >> $GITHUB_OUTPUT
           echo "APERF_IMAGE=ghcr.io/codriverlabs/ce/toe-aperf" >> $GITHUB_OUTPUT
+            echo "TCPDUMP_IMAGE=ghcr.io/codriverlabs/ce/toe-tcpdump" >> $GITHUB_OUTPUT
+            echo "CHAOS_IMAGE=ghcr.io/codriverlabs/ce/toe-chaos" >> $GITHUB_OUTPUT
 
       - name: Build and push controller image
         uses: docker/build-push-action@v6
@@ -143,6 +201,8 @@ jobs:
           tags: |
             ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
             ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-arm64
+          build-args: |
+            GO_VERSION=${{ needs.prepare.outputs.go-version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -156,13 +216,16 @@ jobs:
           tags: |
             ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
             ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-arm64
+          build-args: |
+            GO_VERSION=${{ needs.prepare.outputs.go-version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build and push aperf image
         uses: docker/build-push-action@v6
         with:
-          context: power-tools/aperf
+          context: power-tools
+          file: power-tools/aperf/Dockerfile
           push: true
           platforms: linux/arm64
           tags: |
@@ -171,8 +234,34 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build and push tcpdump image
+        uses: docker/build-push-action@v6
+        with:
+          context: power-tools
+          file: power-tools/tcpdump/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ steps.images.outputs.TCPDUMP_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
+            ${{ steps.images.outputs.TCPDUMP_IMAGE }}:latest-arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push chaos image
+        uses: docker/build-push-action@v6
+        with:
+          context: power-tools
+          file: power-tools/chaos/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ steps.images.outputs.CHAOS_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
+            ${{ steps.images.outputs.CHAOS_IMAGE }}:latest-arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   create-manifests-and-release:
-    needs: [build-and-release, build-arm64]
+    needs: [prepare, build-and-release, build-arm64]
     if: always() && (needs.build-and-release.result == 'success')
     runs-on: ubuntu-latest
     permissions:
@@ -195,7 +284,7 @@ jobs:
 
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${{ needs.prepare.outputs.release-version }}" >> $GITHUB_OUTPUT
 
       - name: Set image names based on repository
         id: images
@@ -204,60 +293,60 @@ jobs:
             echo "CONTROLLER_IMAGE=ghcr.io/codriverlabs/ce/toe-controller" >> $GITHUB_OUTPUT
             echo "COLLECTOR_IMAGE=ghcr.io/codriverlabs/ce/toe-collector" >> $GITHUB_OUTPUT
             echo "APERF_IMAGE=ghcr.io/codriverlabs/ce/toe-aperf" >> $GITHUB_OUTPUT
+            echo "TCPDUMP_IMAGE=ghcr.io/codriverlabs/ce/toe-tcpdump" >> $GITHUB_OUTPUT
+            echo "CHAOS_IMAGE=ghcr.io/codriverlabs/ce/toe-chaos" >> $GITHUB_OUTPUT
           else
             echo "CONTROLLER_IMAGE=${{ env.CONTROLLER_IMAGE }}" >> $GITHUB_OUTPUT
             echo "COLLECTOR_IMAGE=${{ env.COLLECTOR_IMAGE }}" >> $GITHUB_OUTPUT
             echo "APERF_IMAGE=${{ env.APERF_IMAGE }}" >> $GITHUB_OUTPUT
+            echo "TCPDUMP_IMAGE=${{ env.TCPDUMP_IMAGE }}" >> $GITHUB_OUTPUT
+            echo "CHAOS_IMAGE=${{ env.CHAOS_IMAGE }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create multi-arch manifests
+      - name: Determine manifest type
+        id: manifest-type
         run: |
-          # Create and push multi-arch manifests
           if [[ "${{ github.repository }}" == "codriverlabs/toe-run-ce" ]]; then
-            # Public repo: create multi-arch manifests with both amd64 and arm64
-            docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }} \
-              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64 \
-              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest \
-              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-amd64 \
-              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-arm64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }} \
-              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64 \
-              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest \
-              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-amd64 \
-              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-arm64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }} \
-              ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64 \
-              ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}-arm64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:latest \
-              ${{ steps.images.outputs.APERF_IMAGE }}:latest-amd64 \
-              ${{ steps.images.outputs.APERF_IMAGE }}:latest-arm64
+            echo "multi-arch=true" >> $GITHUB_OUTPUT
           else
-            # Private repo: only amd64 images, just tag them without -amd64 suffix
-            docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }} \
-              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest \
-              ${{ steps.images.outputs.CONTROLLER_IMAGE }}:latest-amd64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }} \
-              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest \
-              ${{ steps.images.outputs.COLLECTOR_IMAGE }}:latest-amd64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }} \
-              ${{ steps.images.outputs.APERF_IMAGE }}:${{ steps.version.outputs.VERSION }}-amd64
-            
-            docker buildx imagetools create -t ${{ steps.images.outputs.APERF_IMAGE }}:latest \
-              ${{ steps.images.outputs.APERF_IMAGE }}:latest-amd64
+            echo "multi-arch=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Create controller manifest
+        uses: ./.github/actions/create-manifest
+        with:
+          image: ${{ steps.images.outputs.CONTROLLER_IMAGE }}
+          version: ${{ steps.version.outputs.VERSION }}
+          multi-arch: ${{ steps.manifest-type.outputs.multi-arch }}
+
+      - name: Create collector manifest
+        uses: ./.github/actions/create-manifest
+        with:
+          image: ${{ steps.images.outputs.COLLECTOR_IMAGE }}
+          version: ${{ steps.version.outputs.VERSION }}
+          multi-arch: ${{ steps.manifest-type.outputs.multi-arch }}
+
+      - name: Create aperf manifest
+        uses: ./.github/actions/create-manifest
+        with:
+          image: ${{ steps.images.outputs.APERF_IMAGE }}
+          version: ${{ steps.version.outputs.VERSION }}
+          multi-arch: ${{ steps.manifest-type.outputs.multi-arch }}
+
+      - name: Create tcpdump manifest
+        uses: ./.github/actions/create-manifest
+        with:
+          image: ${{ steps.images.outputs.TCPDUMP_IMAGE }}
+          version: ${{ steps.version.outputs.VERSION }}
+          multi-arch: ${{ steps.manifest-type.outputs.multi-arch }}
+
+      - name: Create chaos manifest
+        uses: ./.github/actions/create-manifest
+        with:
+          image: ${{ steps.images.outputs.CHAOS_IMAGE }}
+          version: ${{ steps.version.outputs.VERSION }}
+          multi-arch: ${{ steps.manifest-type.outputs.multi-arch }}
+
 
       - name: Generate release artifacts
         run: |

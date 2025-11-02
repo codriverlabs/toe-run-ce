@@ -1,0 +1,16 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: chaos-process-terminate
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: test-service
+  tool:
+    name: "chaos"
+    duration: "10s"
+    args:
+      - "terminate-graceful"
+  output:
+    mode: "ephemeral"
