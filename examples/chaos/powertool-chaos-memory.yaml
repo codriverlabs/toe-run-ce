@@ -1,0 +1,21 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: chaos-memory-pressure
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: web-server
+  tool:
+    name: "chaos"
+    duration: "1m"
+    args:
+      - "memory"
+      - "pressure"
+      - "50"
+      - "linear"
+  output:
+    mode: "collector"
+    collector:
+      endpoint: "https://toe-collector.toe-system.svc.cluster.local:8443"

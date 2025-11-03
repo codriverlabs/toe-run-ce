@@ -1,0 +1,16 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: tcpdump-network-capture
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: my-application
+  tool:
+    name: "tcpdump"
+    duration: "60s"
+    args:
+      - "port 80 or port 443"
+  output:
+    mode: "ephemeral"

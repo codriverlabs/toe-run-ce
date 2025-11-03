@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox-nonroot
+  namespace: toe-test
+  labels:
+    app: "busybox-test"
+spec:
+  securityContext:
+    runAsUser: 1001
+    runAsGroup: 1001
+    fsGroup: 1001
+    runAsNonRoot: true
+  containers:
+    - name: main-container
+      image: busybox
+      command: ["sleep", "400000"]

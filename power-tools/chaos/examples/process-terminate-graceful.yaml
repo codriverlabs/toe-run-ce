@@ -1,0 +1,24 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: chaos-process-terminate-graceful
+  namespace: default
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: my-app
+  tool:
+    name: "chaos"
+    duration: "10s"
+    args:
+      - "process"
+      - "terminate-graceful"
+  output:
+    mode: "ephemeral"
+---
+# This chaos experiment will:
+# - Send SIGTERM to the target process (PID 1)
+# - Allow the process to perform graceful shutdown
+# - Kubernetes will restart the container based on restart policy
+# - Test application's graceful shutdown and recovery

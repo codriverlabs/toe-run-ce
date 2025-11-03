@@ -1,0 +1,15 @@
+extends: relaxed
+
+rules:
+  line-length:
+    max: 120  # Increase from default 80 to 120 for better compatibility
+  trailing-spaces: enable
+  empty-lines:
+    max-end: 1
+
+ignore: |
+  dist/
+  *.tgz
+  # Ignore Helm template files that yamllint can't parse properly
+  */templates/*.yaml
+  helm/*/templates/*.yaml

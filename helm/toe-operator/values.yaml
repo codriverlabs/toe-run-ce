@@ -1,0 +1,139 @@
+# Default values for toe-operator
+
+# Global settings
+global:
+  # Single version for all TOE components (controller, collector, powertools)
+  version: "1.1.10-beta"
+  registry:
+    type: ghcr  # local, ecr, ghcr
+    # Base repository path - customers can override this for their ECR
+    # Example: "123456789012.dkr.ecr.us-west-2.amazonaws.com/codriverlabs/ce"
+    repository: "ghcr.io/codriverlabs/ce"
+    imagePullSecrets: []
+  namespace: toe-system
+
+# Controller configuration
+controller:
+  enabled: true
+  image:
+    # Repository will be: global.registry.repository + "/toe-controller"
+    # Tag uses global.version
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+# Collector configuration
+collector:
+  enabled: true
+  image:
+    # Repository will be: global.registry.repository + "/toe-collector"
+    # Tag uses global.version
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  service:
+    type: ClusterIP
+    port: 8443
+  storage:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+    fsGroup: 50002  # EFS access point group ID
+
+# PowerTool configurations
+powertools:
+  enabled: true
+  aperf:
+    image:
+      # Repository will be: global.registry.repository + "/toe-aperf"
+      # Tag uses global.version
+    allowedNamespaces:
+      - "production"
+      - "staging"
+      - "development"
+      - "toe-test"
+    description: "Advanced performance profiling tool for CPU and memory analysis"
+    version: "v1.0.12"
+    defaultArgs: ["--cpu", "--memory"]
+  tcpdump:
+    image:
+      # Repository will be: global.registry.repository + "/toe-tcpdump"
+      # Tag uses global.version
+    description: "Network packet capture using tcpdump"
+    defaultArgs: ["-i", "any"]
+  chaos:
+    image:
+      # Repository will be: global.registry.repository + "/toe-chaos"
+      # Tag uses global.version
+    description: "Comprehensive chaos engineering experiments: process, cpu, storage, network, memory"
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "1000m"
+  # Default tool configurations to install (legacy - keeping for compatibility)
+  configs:
+    aperf:
+      enabled: true
+      image:
+        # Repository will be: global.registry.repository + "/toe-aperf"
+        # Tag uses global.version
+    tcpdump:
+      enabled: true
+      image:
+        # Repository will be: global.registry.repository + "/toe-tcpdump"
+        # Tag uses global.version
+    chaos:
+      enabled: true
+      image:
+        # Repository will be: global.registry.repository + "/toe-chaos"
+        # Tag uses global.version
+
+# RBAC configuration
+rbac:
+  create: true
+  # Install built-in RBAC roles
+  installBuiltinRoles: true
+
+# Service Account configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  # For EKS with IRSA, add the role ARN annotation:
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/TOE-IRSA-Role
+
+# Security settings
+security:
+  podSecurityPolicy:
+    enabled: false
+  networkPolicy:
+    enabled: false
+
+# ECR specific settings (when global.registry.type = ecr)
+ecr:
+  accountId: ""
+  region: us-west-2
+  # For EKS clusters, set useIRSA to true to avoid Docker secrets
+  useIRSA: false
+  secretName: ecr-secret
+
+# Monitoring
+monitoring:
+  enabled: false
+  serviceMonitor:
+    enabled: false

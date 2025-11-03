@@ -1,0 +1,19 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: chaos-cpu-spike
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: web-server
+  tool:
+    name: "chaos"
+    duration: "1m"
+    args:
+      - "cpu"
+      - "90"
+  output:
+    mode: "collector"
+    collector:
+      endpoint: "https://toe-collector.toe-system.svc.cluster.local:8443"

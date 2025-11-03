@@ -1,0 +1,27 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: collector-cert
+  namespace: toe-system
+spec:
+  secretName: toe-collector-certs
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+  subject:
+    organizations:
+      - CoDriver Labs
+  commonName: toe-collector.toe-system.svc
+  dnsNames:
+    - toe-collector.toe-system.svc
+    - toe-collector.toe-system.svc.cluster.local
+  issuerRef:
+    name: toe-collector-issuer
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: collector-issuer
+  namespace: toe-system
+spec:
+  selfSigned: {} # For development; use CA issuer for production

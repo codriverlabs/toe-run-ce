@@ -1,0 +1,16 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: aperf-multicontainer-test
+  namespace: toe-test
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: multi-test
+    container: "main-app"  # Target specific container
+  tool:
+    name: "aperf"
+    duration: "10s"
+  output:
+    mode: "ephemeral"

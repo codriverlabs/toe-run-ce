@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: multi-container-test
+  namespace: toe-test
+  labels:
+    app: "multi-test"
+spec:
+  containers:
+    - name: sidecar
+      image: busybox
+      command: ["sleep", "400000"]
+      securityContext:
+        runAsUser: 2000
+        runAsGroup: 2000
+    - name: main-app
+      image: busybox
+      command: ["sleep", "400000"]
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001

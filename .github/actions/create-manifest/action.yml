@@ -1,0 +1,41 @@
+name: 'Create Docker Manifest'
+description: 'Create multi-arch or single-arch Docker manifest'
+
+inputs:
+  image:
+    description: 'Image name (e.g., ghcr.io/codriverlabs/toe-controller)'
+    required: true
+  version:
+    description: 'Version tag (e.g., 1.0.52)'
+    required: true
+  multi-arch:
+    description: 'Create multi-arch manifest (true) or amd64-only (false)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create version manifest
+      shell: bash
+      run: |
+        if [[ "${{ inputs.multi-arch }}" == "true" ]]; then
+          docker buildx imagetools create -t ${{ inputs.image }}:${{ inputs.version }} \
+            ${{ inputs.image }}:${{ inputs.version }}-amd64 \
+            ${{ inputs.image }}:${{ inputs.version }}-arm64
+        else
+          docker buildx imagetools create -t ${{ inputs.image }}:${{ inputs.version }} \
+            ${{ inputs.image }}:${{ inputs.version }}-amd64
+        fi
+
+    - name: Create latest manifest
+      shell: bash
+      run: |
+        if [[ "${{ inputs.multi-arch }}" == "true" ]]; then
+          docker buildx imagetools create -t ${{ inputs.image }}:latest \
+            ${{ inputs.image }}:latest-amd64 \
+            ${{ inputs.image }}:latest-arm64
+        else
+          docker buildx imagetools create -t ${{ inputs.image }}:latest \
+            ${{ inputs.image }}:latest-amd64
+        fi

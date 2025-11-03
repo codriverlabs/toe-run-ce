@@ -1,0 +1,26 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: chaos-comprehensive-test
+  annotations:
+    description: "Comprehensive chaos engineering workflow for resilience testing"
+    chaos.toe.run/experiment-type: "multi-phase"
+    chaos.toe.run/risk-level: "medium"
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: web-server
+        environment: staging  # Only run on staging
+  tool:
+    name: "chaos"
+    duration: "5m"
+    args:
+      - "memory"
+      - "pressure"
+      - "100"
+      - "oscillating"
+  output:
+    mode: "collector"
+  # This would be part of a larger workflow where multiple PowerTools
+  # are executed in sequence to test different failure scenarios

@@ -1,0 +1,98 @@
+{{- if .Values.collector.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toe-collector
+  namespace: {{ include "toe-operator.namespace" . }}
+  labels:
+    {{- include "toe-operator.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  replicas: {{ .Values.collector.replicas }}
+  selector:
+    matchLabels:
+      app: toe-collector
+  template:
+    metadata:
+      labels:
+        app: toe-collector
+        {{- include "toe-operator.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: toe-collector
+      {{- if .Values.collector.storage.fsGroup }}
+      securityContext:
+        fsGroup: {{ .Values.collector.storage.fsGroup }}
+      {{- end }}
+      {{- with include "toe-operator.imagePullSecrets" . }}
+      imagePullSecrets:
+{{ . | indent 8 }}
+      {{- end }}
+      containers:
+      - name: collector
+        image: {{ include "toe-operator.collector.image" . }}
+        imagePullPolicy: {{ .Values.collector.image.pullPolicy }}
+        ports:
+        - containerPort: 8443
+          name: https
+        env:
+        - name: TLS_CERT_PATH
+          value: "/etc/certs/tls.crt"
+        - name: TLS_KEY_PATH
+          value: "/etc/certs/tls.key"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: certs
+          mountPath: /etc/certs
+          readOnly: true
+        resources:
+          {{- toYaml .Values.collector.resources | nindent 10 }}
+      volumes:
+      - name: data
+        {{- if .Values.collector.storage.enabled }}
+        persistentVolumeClaim:
+          claimName: toe-collector-data
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: certs
+        secret:
+          secretName: toe-collector-certs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: toe-collector
+  namespace: {{ include "toe-operator.namespace" . }}
+  labels:
+    {{- include "toe-operator.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  selector:
+    app: toe-collector
+  ports:
+  - port: {{ .Values.collector.service.port }}
+    targetPort: 8443
+    name: https
+  type: {{ .Values.collector.service.type }}
+{{- if .Values.collector.storage.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: toe-collector-data
+  namespace: {{ include "toe-operator.namespace" . }}
+  labels:
+    {{- include "toe-operator.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.collector.storage.size }}
+  {{- if .Values.collector.storage.storageClass }}
+  storageClassName: {{ .Values.collector.storage.storageClass }}
+  {{- end }}
+{{- end }}
+{{- end }}

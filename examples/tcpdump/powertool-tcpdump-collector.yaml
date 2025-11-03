@@ -1,0 +1,16 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: tcpdump-collector-upload
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: database
+  tool:
+    name: "tcpdump"
+    duration: "2m"
+    args:
+      - "port 3306 or port 5432"
+  output:
+    mode: "collector"

@@ -1,0 +1,24 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: chaos-process-terminate-force
+  namespace: default
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: my-app
+  tool:
+    name: "chaos"
+    duration: "5s"
+    args:
+      - "process"
+      - "terminate-force"
+  output:
+    mode: "ephemeral"
+---
+# This chaos experiment will:
+# - Send SIGKILL to the target process (PID 1)
+# - Force immediate termination without cleanup
+# - Kubernetes will restart the container based on restart policy
+# - Test application's crash recovery and data consistency

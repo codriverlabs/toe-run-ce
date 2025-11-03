@@ -1,0 +1,99 @@
+# Production-only profiler with high privileges
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: prod-profiler-config
+  namespace: toe-system
+  annotations:
+    powertool.toe.run/access-level: "production-only"
+    powertool.toe.run/owner: "platform-team"
+spec:
+  name: "prod-profiler"
+  image: "localhost:32000/codriverlabs/toe/aperf:v1.0.12"
+  securityContext:
+    allowPrivileged: false
+    allowHostPID: false
+    runAsRoot: true
+    capabilities:
+      add: ["SYS_PTRACE", "SYS_ADMIN"]
+      drop: ["ALL"]
+  allowedNamespaces:
+    - "production"
+    - "staging"
+  description: "Production profiler with enhanced capabilities"
+  version: "v1.0.5"
+
+---
+# Development-safe profiler with minimal privileges
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: dev-profiler-config
+  namespace: toe-system
+  annotations:
+    powertool.toe.run/access-level: "development"
+    powertool.toe.run/owner: "dev-team"
+spec:
+  name: "dev-profiler"
+  image: "localhost:32000/codriverlabs/toe/aperf:v1.1.0"
+  securityContext:
+    allowPrivileged: false
+    allowHostPID: false
+    capabilities:
+      add: ["SYS_PTRACE"]
+      drop: ["ALL"]
+  allowedNamespaces:
+    - "development"
+    - "testing"
+    - "sandbox"
+  description: "Development-safe profiler with minimal privileges"
+  version: "v1.0.5"
+
+---
+# Admin-only debugger with full access (no namespace restrictions)
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: admin-debugger-config
+  namespace: toe-system
+  annotations:
+    powertool.toe.run/access-level: "admin-only"
+    powertool.toe.run/owner: "platform-team"
+    powertool.toe.run/security-review: "approved-2034-01-01"
+spec:
+  name: "admin-debugger"
+  image: "localhost:32000/codriverlabs/toe/debugger:v1.0.0"
+  securityContext:
+    allowPrivileged: true
+    allowHostPID: false
+    capabilities:
+      add: ["SYS_ADMIN", "SYS_PTRACE", "NET_ADMIN"]
+  # No allowedNamespaces = can be used anywhere (by admins only)
+  description: "Administrative debugger with full system access"
+  version: "v1.0.0"
+
+---
+# Team-specific tool
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerToolConfig
+metadata:
+  name: team-alpha-profiler-config
+  namespace: toe-system
+  annotations:
+    powertool.toe.run/team: "team-alpha"
+    powertool.toe.run/owner: "team-alpha-lead"
+spec:
+  name: "team-profiler"
+  image: "localhost:32000/codriverlabs/toe/team-profiler:v1.1.0"
+  securityContext:
+    allowPrivileged: false
+    allowHostPID: false
+    capabilities:
+      add: ["SYS_PTRACE"]
+      drop: ["ALL"]
+  allowedNamespaces:
+    - "team-alpha-prod"
+    - "team-alpha-staging"
+    - "team-alpha-dev"
+  description: "Team Alpha specific profiler"
+  version: "v1.1.0"

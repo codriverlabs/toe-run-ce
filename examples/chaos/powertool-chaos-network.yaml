@@ -1,0 +1,19 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: chaos-network-test
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: web-server
+  tool:
+    name: "chaos"
+    duration: "2m"
+    args:
+      - "network"
+      - "connectivity"
+      - "google.com"
+      - "80"
+  output:
+    mode: "collector"

@@ -1,0 +1,15 @@
+apiVersion: codriverlabs.ai.toe.run/v1alpha1
+kind: PowerTool
+metadata:
+  name: basic-aperf-profile
+  namespace: default
+spec:
+  targets:
+    labelSelector:
+      matchLabels:
+        app: nginx
+  tool:
+    name: aperf
+    duration: "30s"
+  output:
+    mode: ephemeral
